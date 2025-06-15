@@ -12,11 +12,12 @@ import { Stock } from "@/components/Stock";
 import { Deliveries } from "@/components/Deliveries";
 import Reports from "@/components/Reports";
 import { Users } from "@/components/Users";
+import Profile from "@/components/Profile";
 import { NavigationProvider } from "@/contexts/NavigationContext";
 import { ProtectedComponent } from "@/components/ProtectedComponent";
 import { PagePermission } from "@/types/permissions";
 
-export type ActivePage = 'dashboard' | 'products' | 'orders' | 'customers' | 'stock' | 'deliveries' | 'reports' | 'users';
+export type ActivePage = 'dashboard' | 'products' | 'orders' | 'customers' | 'stock' | 'deliveries' | 'reports' | 'users' | 'profile';
 
 const Index = () => {
   const [activePage, setActivePage] = useState<ActivePage>('dashboard');
@@ -30,7 +31,8 @@ const Index = () => {
       'stock': 'estoque',
       'deliveries': 'entregas',
       'reports': 'relatorios',
-      'users': 'usuarios'
+      'users': 'usuarios',
+      'profile': 'dashboard' // Profile usa a mesma permissão do dashboard (sempre acessível)
     };
     return pageMap[page];
   };
@@ -56,13 +58,15 @@ const Index = () => {
           return <Reports />;
         case 'users':
           return <Users />;
+        case 'profile':
+          return <Profile />;
         default:
           return <Dashboard />;
       }
     };
 
-    // Dashboard sempre visível, outras páginas protegidas
-    if (activePage === 'dashboard') {
+    // Dashboard e Profile sempre visíveis, outras páginas protegidas
+    if (activePage === 'dashboard' || activePage === 'profile') {
       return getComponent();
     }
 

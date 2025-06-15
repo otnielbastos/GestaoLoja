@@ -464,6 +464,74 @@ export const authService = {
     }
   },
 
+  // Alterar nome do usuário
+  async updateProfile(data: { nome: string }) {
+    try {
+      const userId = this.getCurrentUserId();
+      if (!userId) {
+        throw new Error('Usuário não autenticado');
+      }
+
+      const { nome } = data;
+
+      if (!nome.trim() || nome.length < 2) {
+        throw new Error('Nome deve ter pelo menos 2 caracteres');
+      }
+
+      // Buscar dados atuais do usuário
+      const { data: usuarioAtual } = await supabase
+        .from('usuarios')
+        .select('nome')
+        .eq('id', userId)
+        .single();
+
+      if (!usuarioAtual) {
+        throw new Error('Usuário não encontrado');
+      }
+
+      // Atualizar nome
+      const { error } = await supabase
+        .from('usuarios')
+        .update({
+          nome: nome.trim(),
+          data_atualizacao: new Date().toISOString()
+        })
+        .eq('id', userId);
+
+      if (error) {
+        throw new Error('Erro ao atualizar perfil');
+      }
+
+      // Atualizar dados no localStorage
+      const currentUser = this.getCurrentUser();
+      if (currentUser) {
+        const updatedUser = { ...currentUser, nome: nome.trim() };
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+      }
+
+      await registrarAuditoria(
+        userId, 
+        'UPDATE_PROFILE', 
+        'usuarios', 
+        userId, 
+        { nome: usuarioAtual.nome }, 
+        { nome: nome.trim() }, 
+        getClientIP(), 
+        getUserAgent()
+      );
+
+      return {
+        success: true,
+        message: 'Perfil atualizado com sucesso',
+        data: { nome: nome.trim() }
+      };
+
+    } catch (error: any) {
+      console.error('Erro ao atualizar perfil:', error);
+      throw new Error(error.message || 'Erro interno do servidor');
+    }
+  },
+
   // Obter ID do usuário atual
   getCurrentUserId(): number | null {
     const user = localStorage.getItem('user');

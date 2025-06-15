@@ -168,6 +168,16 @@ export function AppSidebar({ activePage, setActivePage }: AppSidebarProps) {
           </div>
         </div>
         
+        {/* Botão Meu Perfil */}
+        <Button
+          variant="outline"
+          onClick={() => setActivePage('profile' as ActivePage)}
+          className="w-full flex items-center gap-2 text-gray-600 hover:text-blue-600 hover:border-blue-300"
+        >
+          <Settings className="w-4 h-4" />
+          <span className="text-sm">Meu Perfil</span>
+        </Button>
+        
         {/* Botão de logout */}
         <Button
           variant="outline"
