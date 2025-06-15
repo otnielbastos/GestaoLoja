@@ -92,23 +92,39 @@ export function ProductSelect({
     setAllProducts(combined);
   }, [products, selectedProduct]);
 
-  // Adicionar suporte ao scroll do mouse
+  // Melhorar suporte ao scroll para dispositivos móveis e desktop
   useEffect(() => {
+    const scrollContainer = scrollContainerRef.current;
+    if (!scrollContainer || !isOpen) return;
+
+    // Handler para desktop (wheel)
     const handleWheel = (e: WheelEvent) => {
-      if (scrollContainerRef.current && isOpen) {
-        e.preventDefault();
-        scrollContainerRef.current.scrollTop += e.deltaY;
+      // Não interferir com o scroll natural do browser
+      e.stopPropagation();
+    };
+
+    // Handler para mobile (touch)
+    const handleTouchMove = (e: TouchEvent) => {
+      // Permitir scroll natural no mobile
+      e.stopPropagation();
+    };
+
+    // Evitar que eventos de teclado fechem o dropdown quando no campo de busca
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.target && (e.target as HTMLElement).closest('.search-input')) {
+        e.stopPropagation();
       }
     };
 
-    const scrollContainer = scrollContainerRef.current;
-    if (scrollContainer && isOpen) {
-      scrollContainer.addEventListener('wheel', handleWheel, { passive: false });
-      
-      return () => {
-        scrollContainer.removeEventListener('wheel', handleWheel);
-      };
-    }
+    scrollContainer.addEventListener('wheel', handleWheel, { passive: true });
+    scrollContainer.addEventListener('touchmove', handleTouchMove, { passive: true });
+    scrollContainer.addEventListener('keydown', handleKeyDown);
+    
+    return () => {
+      scrollContainer.removeEventListener('wheel', handleWheel);
+      scrollContainer.removeEventListener('touchmove', handleTouchMove);
+      scrollContainer.removeEventListener('keydown', handleKeyDown);
+    };
   }, [isOpen]);
 
   // Filtrar produtos baseado na busca
@@ -211,46 +227,54 @@ export function ProductSelect({
         sideOffset={4}
       >
         {/* Campo de busca */}
-        <div className="flex items-center px-3 pb-2 border-b">
+        <div className="flex items-center px-3 pb-2 border-b sticky top-0 bg-white z-10">
           <Search className="mr-2 h-4 w-4 shrink-0 opacity-50" />
           <Input
             placeholder="Buscar produto..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="h-8 w-full bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
-            onKeyDown={(e) => e.stopPropagation()}
+            className="h-8 w-full bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0 search-input mobile-input-fix"
+            onKeyDown={(e) => {
+              // Evitar que eventos de teclado fechem o dropdown
+              e.stopPropagation();
+              // Permitir navegação normal com Enter/Escape
+              if (e.key === 'Enter' || e.key === 'Escape') {
+                e.preventDefault();
+              }
+            }}
+            onFocus={(e) => {
+              // Garantir que o campo de busca fique focado
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              // Evitar que cliques no campo fechem o dropdown
+              e.stopPropagation();
+            }}
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
           />
         </div>
         
-        {/* Lista de produtos com scroll do mouse */}
+        {/* Lista de produtos com scroll otimizado para mobile e desktop */}
         <div 
           ref={scrollContainerRef}
-          className="max-h-[300px] overflow-y-auto custom-scrollbar mouse-scroll-enabled"
+          className="max-h-[300px] overflow-y-auto overscroll-contain touch-optimized custom-scrollbar"
           style={{ 
             scrollBehavior: 'smooth',
-            overscrollBehavior: 'contain',
-            // Garantir que o scroll do mouse funcione
+            // Permitir scroll touch no mobile
             touchAction: 'pan-y',
+            // Melhor suporte a dispositivos móveis
+            WebkitOverflowScrolling: 'touch',
             // Estilizar a scrollbar
             scrollbarWidth: 'thin',
             scrollbarColor: '#cbd5e1 #f1f5f9'
           }}
-          onWheel={(e) => {
-            // Permitir scroll natural do mouse
-            e.stopPropagation();
-            // Garantir que o evento seja processado
-            const container = scrollContainerRef.current;
-            if (container) {
-              container.scrollTop += e.deltaY * 0.5; // Scroll mais suave
-            }
-          }}
-          onMouseEnter={() => {
-            // Focar no container quando o mouse entra para garantir que receba eventos de scroll
-            if (scrollContainerRef.current) {
-              scrollContainerRef.current.focus();
-            }
-          }}
-          tabIndex={-1} // Permitir foco sem aparecer na navegação por tab
+          // Remover eventos customizados que podem interferir no mobile
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
         >
           {filteredProducts.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">

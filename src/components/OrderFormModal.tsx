@@ -223,7 +223,14 @@ export function OrderFormModal({ isOpen, onClose, onSubmit, order }: OrderFormMo
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-6xl max-h-[90vh] overflow-y-auto">
+      <DialogContent 
+        className="max-w-6xl max-h-[95vh] w-[95vw] overflow-y-auto"
+        style={{
+          // Melhor suporte a dispositivos móveis
+          touchAction: 'pan-y',
+          WebkitOverflowScrolling: 'touch'
+        }}
+      >
         <DialogHeader>
           <DialogTitle>
             {order ? 'Editar Pedido' : 'Novo Pedido'}
@@ -231,7 +238,7 @@ export function OrderFormModal({ isOpen, onClose, onSubmit, order }: OrderFormMo
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 touch-optimized">
             <div className="space-y-4">
               <CustomerSelect
                 value={formData.customerId || undefined}
