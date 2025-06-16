@@ -38,6 +38,64 @@ export interface Order {
   vendedor_nome?: string; // Nome do vendedor
 }
 
+// Interface para criar pedido
+export interface CreateOrderData {
+  customerId: number;
+  customerName: string;
+  customerPhone: string;
+  status: Order['status'];
+  tipo?: "pronta_entrega" | "encomenda";
+  data_entrega_prevista?: string | null;
+  horario_entrega?: string | null;
+  observacoes_producao?: string;
+  paymentMethod: string;
+  address?: string;
+  notes?: string;
+  items: OrderItem[];
+}
+
+// Interface para atualizar pedido
+export interface UpdateOrderData {
+  status?: Order['status'];
+  tipo?: "pronta_entrega" | "encomenda";
+  data_entrega_prevista?: string | null;
+  horario_entrega?: string | null;
+  observacoes_producao?: string;
+  paymentMethod?: string;
+  address?: string;
+  notes?: string;
+  items?: OrderItem[];
+}
+
+// Interface para criar pedido
+export interface CreateOrderData {
+  customerId: number;
+  customerName: string;
+  customerPhone: string;
+  status: Order['status'];
+  tipo?: "pronta_entrega" | "encomenda";
+  data_entrega_prevista?: string | null;
+  horario_entrega?: string | null;
+  observacoes_producao?: string;
+  paymentMethod: string;
+  address?: string;
+  notes?: string;
+  items: OrderItem[];
+}
+
+// Interface para atualizar pedido
+export interface UpdateOrderData {
+  status?: Order['status'];
+  tipo?: "pronta_entrega" | "encomenda";
+  data_entrega_prevista?: string | null;
+  horario_entrega?: string | null;
+  observacoes_producao?: string;
+  paymentMethod?: string;
+  address?: string;
+  notes?: string;
+  items?: OrderItem[];
+}
+
 // Interface para dados do backend (Supabase)
 interface BackendOrder {
   id: number;
@@ -165,13 +223,13 @@ export function useOrders() {
       setLoading(true);
       setError(null);
       
-      // Se for vendedor, carregar apenas seus pedidos
+      // REGRA DE NEGÓCIO: Se for vendedor, carregar apenas seus pedidos
       const vendedorId = hasRole('Vendedor') ? user?.id : undefined;
       const response = await api.pedidos.listar(vendedorId);
         
       if (response.success) {
-      const mappedOrders = response.data.map(mapOrderFromBackend);
-      setOrders(mappedOrders);
+        const mappedOrders = response.data.map(mapOrderFromBackend);
+        setOrders(mappedOrders);
       } else {
         throw new Error('Erro ao carregar pedidos');
       }
@@ -192,7 +250,133 @@ export function useOrders() {
   // Carregar na inicialização
   useEffect(() => {
     loadOrders();
-  }, [user]); // Dependência do usuário para recarregar quando mudar
+  }, [user]);
+
+  // Criar pedido
+  const createOrder = async (orderData: CreateOrderData): Promise<{ success: boolean; data?: any; error?: string }> => {
+    try {
+      setError(null);
+      const response = await api.pedidos.criar(orderData);
+      
+      if (response.success) {
+        await loadOrders(); // Recarregar lista
+        return { success: true, data: response.data };
+      } else {
+        throw new Error(response.error || 'Erro ao criar pedido');
+      }
+    } catch (error: any) {
+      console.error('Erro ao criar pedido:', error);
+      const errorMessage = error.message || 'Erro ao criar pedido';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  // Atualizar pedido - REGRA DE NEGÓCIO: Verificar permissões
+  const updateOrder = async (id: string | number, updates: UpdateOrderData): Promise<{ success: boolean; data?: any; error?: string }> => {
+    try {
+      setError(null);
+      
+      let numericId: number;
+      
+      // Se o ID é uma string (número do pedido), buscar o ID numérico
+      if (typeof id === 'string') {
+        const response = await api.pedidos.listar();
+        const pedido = response.data.find((p: any) => p.numero_pedido === id);
+        
+        if (!pedido) {
+          throw new Error('Pedido não encontrado');
+        }
+        
+        numericId = pedido.id;
+      } else {
+        numericId = id;
+      }
+      
+      // Verificar se o vendedor pode editar este pedido
+      if (hasRole('Vendedor')) {
+        const order = orders.find(o => o.id === (typeof id === 'string' ? id : id.toString()));
+        if (order && order.criado_por !== user?.id) {
+          throw new Error('Você não tem permissão para editar este pedido');
+        }
+      }
+      
+      // Mapear dados para formato do backend
+      const backendData: any = {};
+      
+      if (updates.status) {
+        backendData.status = mapStatusToBackend(updates.status);
+      }
+      
+      if (updates.items) {
+        backendData.itens = updates.items.map(item => ({
+          produto_id: item.productId || 0,
+          quantidade: item.quantity,
+          preco_unitario: item.unitPrice,
+          desconto_valor: 0,
+          desconto_percentual: 0,
+          tipo_desconto: 'valor' as const
+        }));
+      }
+      
+      // Mapear outros campos
+      if (updates.data_entrega_prevista !== undefined) {
+        backendData.data_entrega_prevista = updates.data_entrega_prevista;
+      }
+      if (updates.horario_entrega !== undefined) {
+        backendData.horario_entrega = updates.horario_entrega;
+      }
+      if (updates.observacoes_producao !== undefined) {
+        backendData.observacoes_producao = updates.observacoes_producao;
+      }
+      if (updates.notes !== undefined) {
+        backendData.observacoes = updates.notes;
+      }
+      
+      const response = await api.pedidos.atualizar(numericId, backendData);
+      
+      if (response.success) {
+        await loadOrders(); // Recarregar lista
+        return { success: true, data: response.data };
+      } else {
+        throw new Error(response.error || 'Erro ao atualizar pedido');
+      }
+    } catch (error: any) {
+      console.error('Erro ao atualizar pedido:', error);
+      const errorMessage = error.message || 'Erro ao atualizar pedido';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
+
+  // Cancelar pedido - REGRA DE NEGÓCIO: Verificar permissões
+  const cancelOrder = async (id: number, motivo?: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      setError(null);
+      
+      // Verificar se o vendedor pode cancelar este pedido
+      if (hasRole('Vendedor')) {
+        const order = orders.find(o => o.id === id);
+        if (order && order.criado_por !== user?.id) {
+          throw new Error('Você não tem permissão para cancelar este pedido');
+        }
+      }
+      
+      const response = await api.pedidos.cancelar(id, motivo);
+      
+      if (response.success) {
+        await loadOrders(); // Recarregar lista
+        return { success: true };
+      } else {
+        throw new Error(response.error || 'Erro ao cancelar pedido');
+      }
+    } catch (error: any) {
+      console.error('Erro ao cancelar pedido:', error);
+      const errorMessage = error.message || 'Erro ao cancelar pedido';
+      setError(errorMessage);
+      return { success: false, error: errorMessage };
+    }
+  };
 
   // Adicionar pedido
   const addOrder = async (orderData: Omit<Order, 'id'>) => {
@@ -226,54 +410,6 @@ export function useOrders() {
       }
     } catch (error: any) {
       console.error('Erro ao adicionar pedido:', error);
-      throw error;
-    }
-  };
-
-  // Atualizar pedido
-  const updateOrder = async (id: string, orderData: Omit<Order, 'id'>) => {
-    try {
-      // Buscar ID numérico do pedido pelo número
-      const pedido = orders.find(o => o.id === id);
-      if (!pedido) {
-        throw new Error('Pedido não encontrado');
-      }
-
-      // Combinar data e hora em um timestamp para data_pedido
-      const dataPedido = `${orderData.date}T${orderData.time}:00`;
-
-      // Mapear dados para formato do backend
-      const backendData: any = {
-        status: mapStatusToBackend(orderData.status),
-        tipo: orderData.tipo,
-        data_pedido: dataPedido, // Adicionar data_pedido combinada
-        data_entrega_prevista: orderData.data_entrega_prevista,
-        horario_entrega: orderData.horario_entrega,
-        observacoes_producao: orderData.observacoes_producao,
-        observacoes: orderData.notes,
-        // Sempre incluir itens na edição para garantir que novos itens sejam salvos
-        itens: orderData.items.map(item => ({
-          produto_id: item.productId || 0,
-          quantidade: item.quantity,
-          preco_unitario: item.unitPrice,
-          desconto_valor: 0,
-          desconto_percentual: 0,
-          tipo_desconto: 'valor' as const
-        }))
-      };
-
-      // Buscar ID numérico real do pedido
-      const response = await api.pedidos.listar();
-      const pedidoCompleto = response.data.find((p: any) => p.numero_pedido === id);
-      
-      if (!pedidoCompleto) {
-        throw new Error('Pedido não encontrado no servidor');
-      }
-
-      await api.pedidos.atualizar(pedidoCompleto.id, backendData);
-      await loadOrders(); // Recarregar lista
-    } catch (error: any) {
-      console.error('Erro ao atualizar pedido:', error);
       throw error;
     }
   };

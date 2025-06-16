@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import type { Pedido, ItemPedido } from '../lib/supabase';
+import { authService } from './supabaseAuth';
 
 interface CriarPedidoData {
   cliente_id: number;
@@ -264,6 +265,10 @@ export const pedidosService = {
   // Listar todos os pedidos com itens detalhados
   async listar(vendedor?: number) {
     try {
+      // Obter usuário atual
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+      
       let query = supabase
         .from('pedidos')
         .select(`
@@ -276,8 +281,11 @@ export const pedidosService = {
         `)
         .neq('status', 'cancelado');
       
-      // Adicionar filtro por vendedor se especificado
-      if (vendedor) {
+      // REGRA DE NEGÓCIO: Vendedor só vê pedidos criados por ele
+      if (isVendedor) {
+        query = query.eq('criado_por', user.id);
+      } else if (vendedor) {
+        // Filtro opcional para outros perfis
         query = query.eq('criado_por', vendedor);
       }
       
@@ -302,7 +310,10 @@ export const pedidosService = {
   // Buscar pedido por ID
   async buscarPorId(id: number) {
     try {
-      const { data: pedido, error } = await supabase
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+
+      let query = supabase
         .from('pedidos')
         .select(`
           *,
@@ -312,10 +323,19 @@ export const pedidosService = {
             produto:produtos(*)
           )
         `)
-        .eq('id', id)
-        .single();
+        .eq('id', id);
+
+      // REGRA DE NEGÓCIO: Vendedor só pode buscar pedidos criados por ele
+      if (isVendedor) {
+        query = query.eq('criado_por', user.id);
+      }
+
+      const { data: pedido, error } = await query.single();
 
       if (error) {
+        if (error.code === 'PGRST116') {
+          throw new Error('Pedido não encontrado ou você não tem permissão para acessá-lo');
+        }
         throw new Error('Pedido não encontrado');
       }
 

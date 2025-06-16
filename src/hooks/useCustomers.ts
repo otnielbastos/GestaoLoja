@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
-import api from "@/services/api";
+import { useAuth } from "@/contexts/AuthContext";
+import { clientesService } from "@/services/supabaseClientes";
 
 export interface Customer {
   id: number;
@@ -32,7 +33,26 @@ export interface Customer {
   totalSpent: number;
   notes?: string;
   customerStatus: "VIP" | "Ativo" | "Novo" | "Inativo";
+  criado_por?: number;
 }
+
+interface CreateCustomerData {
+  nome: string;
+  email?: string;
+  telefone?: string;
+  cpf_cnpj?: string;
+  tipo_pessoa: 'fisica' | 'juridica';
+  endereco_rua?: string;
+  endereco_numero?: string;
+  endereco_complemento?: string;
+  endereco_bairro?: string;
+  endereco_cidade?: string;
+  endereco_estado?: string;
+  endereco_cep?: string;
+  observacoes?: string;
+}
+
+interface UpdateCustomerData extends Partial<CreateCustomerData> {}
 
 // Função para mapear dados do backend para o frontend
 const mapCustomerFromBackend = (backendCustomer: any): Customer => {
@@ -97,7 +117,8 @@ const mapCustomerFromBackend = (backendCustomer: any): Customer => {
     lastOrder: lastOrderFormatted,
     totalSpent: totalGasto,
     notes: backendCustomer.observacoes || '',
-    customerStatus
+    customerStatus,
+    criado_por: backendCustomer.criado_por,
   };
 };
 
@@ -124,115 +145,192 @@ export function useCustomers() {
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const { user, hasRole } = useAuth();
 
   // Carregar clientes
   const loadCustomers = async () => {
     try {
       setLoading(true);
-      const response = await api.clientes.listar();
+      setError(null);
+      
+      // REGRA DE NEGÓCIO: Vendedor só vê clientes criados por ele
+      const vendedorId = hasRole('Vendedor') ? user?.id : undefined;
+      const response = await clientesService.listar(vendedorId);
       
       if (response.success) {
         const mappedCustomers = response.data.map(mapCustomerFromBackend);
         setCustomers(mappedCustomers);
-        setError(null);
       } else {
         throw new Error('Erro ao carregar clientes');
       }
-    } catch (err: any) {
-      setError(err.message || 'Erro ao carregar clientes');
-      console.error('Erro ao carregar clientes:', err);
+    } catch (error: any) {
+      console.error('Erro ao carregar clientes:', error);
+      setError(error.message || 'Erro ao carregar clientes');
+      setCustomers([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Carregar clientes ao montar o componente
+  // Carregar na inicialização
   useEffect(() => {
     loadCustomers();
-  }, []);
+  }, [user]);
 
-  const addCustomer = async (customer: Omit<Customer, 'id' | 'orders' | 'lastOrder' | 'totalSpent' | 'total_pedidos' | 'ultimo_pedido' | 'total_gasto' | 'data_cadastro' | 'status' | 'customerStatus'>) => {
+  // Criar cliente
+  const createCustomer = async (customerData: Partial<Customer>): Promise<Customer> => {
     try {
-      const backendData = mapCustomerToBackend(customer);
-      const response = await api.clientes.criar(backendData);
+      setError(null);
+      
+      // Mapear dados do frontend para o formato do backend
+      const backendData: CreateCustomerData = {
+        nome: customerData.name || customerData.nome || '',
+        email: customerData.email || undefined,
+        telefone: customerData.phone || customerData.telefone || '',
+        cpf_cnpj: customerData.cpf_cnpj || undefined,
+        tipo_pessoa: customerData.tipo_pessoa || 'fisica',
+        endereco_rua: customerData.endereco_rua || undefined,
+        endereco_numero: customerData.endereco_numero || undefined,
+        endereco_complemento: customerData.endereco_complemento || undefined,
+        endereco_bairro: customerData.neighborhood || customerData.endereco_bairro || undefined,
+        endereco_cidade: customerData.endereco_cidade || undefined,
+        endereco_estado: customerData.endereco_estado || undefined,
+        endereco_cep: customerData.endereco_cep || undefined,
+        observacoes: customerData.notes || customerData.observacoes || undefined,
+      };
+      
+      const response = await clientesService.criar(backendData);
       
       if (response.success) {
-        const mappedCustomer = mapCustomerFromBackend(response.data);
-        setCustomers(prev => [...prev, mappedCustomer]);
-        return mappedCustomer;
+        await loadCustomers(); // Recarregar lista
+        return mapCustomerFromBackend(response.data);
       } else {
-        throw new Error(response.message || 'Erro ao adicionar cliente');
+        throw new Error('Erro ao criar cliente');
       }
-    } catch (err) {
-      console.error('Erro ao adicionar cliente:', err);
-      throw err;
+    } catch (error: any) {
+      console.error('Erro ao criar cliente:', error);
+      const errorMessage = error.message || 'Erro ao criar cliente';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
-  const updateCustomer = async (id: number, customer: Omit<Customer, 'id'>) => {
+  // Atualizar cliente - REGRA DE NEGÓCIO: Verificar permissões
+  const updateCustomer = async (id: number, updates: UpdateCustomerData): Promise<Customer> => {
     try {
-      const backendData = mapCustomerToBackend(customer);
-      const response = await api.clientes.atualizar(id, backendData);
+      setError(null);
+      
+      // Verificar se o vendedor pode editar este cliente
+      if (hasRole('Vendedor')) {
+        const customer = customers.find(c => c.id === id);
+        if (customer && customer.criado_por !== user?.id) {
+          throw new Error('Você não tem permissão para editar este cliente');
+        }
+      }
+      
+      const response = await clientesService.atualizar(id, updates);
       
       if (response.success) {
-        // Recarregar lista após atualizar
-        await loadCustomers();
-        return response;
+        await loadCustomers(); // Recarregar lista
+        return mapCustomerFromBackend(response.data);
       } else {
         throw new Error('Erro ao atualizar cliente');
       }
-    } catch (err) {
-      console.error('Erro ao atualizar cliente:', err);
-      throw err;
+    } catch (error: any) {
+      console.error('Erro ao atualizar cliente:', error);
+      const errorMessage = error.message || 'Erro ao atualizar cliente';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
-  const deleteCustomer = async (id: number) => {
+  // Deletar cliente - REGRA DE NEGÓCIO: Verificar permissões
+  const deleteCustomer = async (id: number): Promise<void> => {
     try {
-      const response = await api.clientes.excluir(id);
+      setError(null);
+      
+      // Verificar se o vendedor pode deletar este cliente
+      if (hasRole('Vendedor')) {
+        const customer = customers.find(c => c.id === id);
+        if (customer && customer.criado_por !== user?.id) {
+          throw new Error('Você não tem permissão para excluir este cliente');
+        }
+      }
+      
+      const response = await clientesService.deletar(id);
       
       if (response.success) {
-        setCustomers(prev => prev.filter(c => c.id !== id));
+        await loadCustomers(); // Recarregar lista
       } else {
-        throw new Error(response.message || 'Erro ao deletar cliente');
+        throw new Error('Erro ao excluir cliente');
       }
-    } catch (err) {
-      console.error('Erro ao deletar cliente:', err);
-      throw err;
+    } catch (error: any) {
+      console.error('Erro ao excluir cliente:', error);
+      const errorMessage = error.message || 'Erro ao excluir cliente';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
-  const getCustomer = (id: number) => {
-    return customers.find(c => c.id === id);
+  // Buscar cliente por ID
+  const getCustomerById = async (id: number): Promise<Customer> => {
+    try {
+      setError(null);
+      const response = await clientesService.buscarPorId(id);
+      
+      if (response.success) {
+        return mapCustomerFromBackend(response.data);
+      } else {
+        throw new Error('Cliente não encontrado');
+      }
+    } catch (error: any) {
+      console.error('Erro ao buscar cliente:', error);
+      const errorMessage = error.message || 'Erro ao buscar cliente';
+      setError(errorMessage);
+      throw new Error(errorMessage);
+    }
   };
 
-  const searchCustomers = async (termo: string) => {
+  // Buscar clientes
+  const searchCustomers = async (termo: string): Promise<Customer[]> => {
     try {
-      const response = await api.clientes.buscar(termo);
+      setError(null);
+      const response = await clientesService.buscar(termo);
       
       if (response.success) {
         return response.data.map(mapCustomerFromBackend);
       } else {
         throw new Error('Erro ao buscar clientes');
       }
-    } catch (err) {
-      console.error('Erro ao buscar clientes:', err);
-      throw err;
+    } catch (error: any) {
+      console.error('Erro ao buscar clientes:', error);
+      const errorMessage = error.message || 'Erro ao buscar clientes';
+      setError(errorMessage);
+      throw new Error(errorMessage);
     }
   };
 
+  // Atualizar lista
+  const refreshCustomers = () => {
+    loadCustomers();
+  };
+
+  // Alias para compatibilidade com o componente existente
+  const addCustomer = createCustomer;
+  const getCustomer = getCustomerById;
+
+  // Obter estatísticas dos clientes
   const getStatistics = async () => {
     try {
-      const response = await api.clientes.estatisticas();
-      
+      const response = await clientesService.estatisticas();
       if (response.success) {
         return response.data;
       } else {
-        throw new Error('Erro ao buscar estatísticas');
+        throw new Error('Erro ao carregar estatísticas');
       }
-    } catch (err) {
-      console.error('Erro ao buscar estatísticas:', err);
-      throw err;
+    } catch (error: any) {
+      console.error('Erro ao carregar estatísticas:', error);
+      throw new Error(error.message || 'Erro ao carregar estatísticas');
     }
   };
 
@@ -240,13 +338,18 @@ export function useCustomers() {
     customers,
     loading,
     error,
-    addCustomer,
+    createCustomer,
+    addCustomer, // Alias para compatibilidade
     updateCustomer,
     deleteCustomer,
-    getCustomer,
+    getCustomerById,
+    getCustomer, // Alias para compatibilidade
     searchCustomers,
+    refreshCustomers,
     getStatistics,
-    refreshCustomers: loadCustomers,
-    reloadCustomers: loadCustomers
+    // Estatísticas filtradas por vendedor
+    totalCustomers: customers.length,
+    activeCustomers: customers.filter(c => c.status === 'ativo').length,
+    inactiveCustomers: customers.filter(c => c.status === 'inativo').length,
   };
 }

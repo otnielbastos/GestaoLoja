@@ -19,18 +19,34 @@ interface ClienteData {
 
 export const clientesService = {
   // Listar todos os clientes com estatísticas
-  async listar() {
+  async listar(vendedorId?: number) {
     try {
-      const { data: clientes, error } = await supabase
+      // Obter usuário atual
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+      
+      let query = supabase
         .from('clientes')
         .select(`
           *,
           pedidos(id, data_pedido, valor_total)
         `)
-        .eq('status', 'ativo')
-        .order('nome');
+        .eq('status', 'ativo');
 
-      if (error) throw new Error('Erro ao buscar clientes');
+      // REGRA DE NEGÓCIO: Vendedor só vê clientes criados por ele
+      if (isVendedor) {
+        query = query.eq('criado_por', user.id);
+      } else if (vendedorId) {
+        // Filtro opcional para outros perfis
+        query = query.eq('criado_por', vendedorId);
+      }
+
+      const { data: clientes, error } = await query.order('nome');
+
+      if (error) {
+        console.error('Erro na query de clientes:', error);
+        throw new Error('Erro ao buscar clientes');
+      }
 
       // REGRA DE NEGÓCIO: Calcular estatísticas para cada cliente
       const clientesComEstatisticas = clientes.map(cliente => {
@@ -64,16 +80,30 @@ export const clientesService = {
   // Buscar cliente por ID com estatísticas
   async buscarPorId(id: number) {
     try {
-      const { data: cliente, error } = await supabase
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+
+      let query = supabase
         .from('clientes')
         .select(`
           *,
           pedidos(id, data_pedido, valor_total, status)
         `)
-        .eq('id', id)
-        .single();
+        .eq('id', id);
 
-      if (error) throw new Error('Cliente não encontrado');
+      // REGRA DE NEGÓCIO: Vendedor só pode buscar clientes criados por ele
+      if (isVendedor) {
+        query = query.eq('criado_por', user.id);
+      }
+
+      const { data: cliente, error } = await query.single();
+
+      if (error) {
+        if (error.code === 'PGRST116') {
+          throw new Error('Cliente não encontrado ou você não tem permissão para acessá-lo');
+        }
+        throw new Error('Cliente não encontrado');
+      }
 
       // REGRA DE NEGÓCIO: Calcular estatísticas do cliente
       const pedidos = cliente.pedidos || [];
@@ -136,12 +166,16 @@ export const clientesService = {
 
       // REGRA DE NEGÓCIO: Verificar se já existe cliente com mesmo email
       if (emailTratado) {
-        const { data: emailExistente } = await supabase
+        const { data: emailExistente, error: emailError } = await supabase
           .from('clientes')
           .select('id')
           .eq('email', emailTratado)
           .eq('status', 'ativo')
-          .single();
+          .maybeSingle();
+
+        if (emailError) {
+          console.error('Erro ao verificar email existente:', emailError);
+        }
 
         if (emailExistente) {
           throw new Error('Já existe um cliente com este email');
@@ -150,12 +184,16 @@ export const clientesService = {
 
       // REGRA DE NEGÓCIO: Verificar se já existe cliente com mesmo CPF/CNPJ
       if (cpfCnpjTratado) {
-        const { data: cpfExistente } = await supabase
+        const { data: cpfExistente, error: cpfError } = await supabase
           .from('clientes')
           .select('id')
           .eq('cpf_cnpj', cpfCnpjTratado)
           .eq('status', 'ativo')
-          .single();
+          .maybeSingle();
+
+        if (cpfError) {
+          console.error('Erro ao verificar CPF/CNPJ existente:', cpfError);
+        }
 
         if (cpfExistente) {
           throw new Error('Já existe um cliente com este CPF/CNPJ');
@@ -222,6 +260,24 @@ export const clientesService = {
   // Atualizar cliente
   async atualizar(id: number, data: Partial<ClienteData>) {
     try {
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+
+      // REGRA DE NEGÓCIO: Vendedor só pode atualizar clientes criados por ele
+      if (isVendedor) {
+        // Verificar se o cliente pertence ao vendedor
+        const { data: cliente, error: errorBusca } = await supabase
+          .from('clientes')
+          .select('criado_por')
+          .eq('id', id)
+          .eq('criado_por', user.id)
+          .single();
+
+        if (errorBusca || !cliente) {
+          throw new Error('Cliente não encontrado ou você não tem permissão para editá-lo');
+        }
+      }
+
       const {
         nome,
         email,
@@ -238,49 +294,38 @@ export const clientesService = {
         observacoes
       } = data;
 
-      // REGRA DE NEGÓCIO: Verificar se cliente existe
-      const { data: clienteExistente } = await supabase
-        .from('clientes')
-        .select('id, email, cpf_cnpj')
-        .eq('id', id)
-        .eq('status', 'ativo')
-        .single();
-
-      if (!clienteExistente) {
-        throw new Error('Cliente não encontrado');
-      }
-
-      // REGRA DE NEGÓCIO: Converter campos vazios para null
+      // REGRA DE NEGÓCIO: Converter campos vazios para null para evitar problemas com UNIQUE constraints
       const emailTratado = email && email.trim() !== '' ? email.trim().toLowerCase() : null;
       const cpfCnpjTratado = cpf_cnpj && cpf_cnpj.trim() !== '' ? cpf_cnpj.trim().replace(/\D/g, '') : null;
       const telefoneTratado = telefone && telefone.trim() !== '' ? telefone.trim() : null;
 
-      // REGRA DE NEGÓCIO: Verificar duplicatas (exceto o próprio cliente)
-      if (emailTratado && emailTratado !== clienteExistente.email) {
+      // REGRA DE NEGÓCIO: Verificar se já existe outro cliente com mesmo email
+      if (emailTratado) {
         const { data: emailExistente } = await supabase
           .from('clientes')
           .select('id')
           .eq('email', emailTratado)
-          .neq('id', id)
           .eq('status', 'ativo')
+          .neq('id', id)
           .single();
 
         if (emailExistente) {
-          throw new Error('Já existe um cliente com este email');
+          throw new Error('Já existe outro cliente com este email');
         }
       }
 
-      if (cpfCnpjTratado && cpfCnpjTratado !== clienteExistente.cpf_cnpj) {
+      // REGRA DE NEGÓCIO: Verificar se já existe outro cliente com mesmo CPF/CNPJ
+      if (cpfCnpjTratado) {
         const { data: cpfExistente } = await supabase
           .from('clientes')
           .select('id')
           .eq('cpf_cnpj', cpfCnpjTratado)
-          .neq('id', id)
           .eq('status', 'ativo')
+          .neq('id', id)
           .single();
 
         if (cpfExistente) {
-          throw new Error('Já existe um cliente com este CPF/CNPJ');
+          throw new Error('Já existe outro cliente com este CPF/CNPJ');
         }
       }
 
@@ -293,25 +338,26 @@ export const clientesService = {
         throw new Error('CNPJ deve ter 14 dígitos');
       }
 
-      const updateData: any = {};
-      if (nome !== undefined) updateData.nome = nome.trim();
-      if (email !== undefined) updateData.email = emailTratado;
-      if (telefone !== undefined) updateData.telefone = telefoneTratado;
-      if (cpf_cnpj !== undefined) updateData.cpf_cnpj = cpfCnpjTratado;
-      if (tipo_pessoa !== undefined) updateData.tipo_pessoa = tipo_pessoa;
-      if (endereco_rua !== undefined) updateData.endereco_rua = endereco_rua?.trim() || null;
-      if (endereco_numero !== undefined) updateData.endereco_numero = endereco_numero?.trim() || null;
-      if (endereco_complemento !== undefined) updateData.endereco_complemento = endereco_complemento?.trim() || null;
-      if (endereco_bairro !== undefined) updateData.endereco_bairro = endereco_bairro?.trim() || null;
-      if (endereco_cidade !== undefined) updateData.endereco_cidade = endereco_cidade?.trim() || null;
-      if (endereco_estado !== undefined) updateData.endereco_estado = endereco_estado?.trim() || null;
-      if (endereco_cep !== undefined) updateData.endereco_cep = endereco_cep?.trim() || null;
-      if (observacoes !== undefined) updateData.observacoes = observacoes?.trim() || null;
-
-      const { error } = await supabase
+      const { data: cliente, error } = await supabase
         .from('clientes')
-        .update(updateData)
-        .eq('id', id);
+        .update({
+          ...(nome && { nome: nome.trim() }),
+          ...(emailTratado !== undefined && { email: emailTratado }),
+          ...(telefoneTratado !== undefined && { telefone: telefoneTratado }),
+          ...(cpfCnpjTratado !== undefined && { cpf_cnpj: cpfCnpjTratado }),
+          ...(tipo_pessoa && { tipo_pessoa }),
+          ...(endereco_rua !== undefined && { endereco_rua: endereco_rua?.trim() || null }),
+          ...(endereco_numero !== undefined && { endereco_numero: endereco_numero?.trim() || null }),
+          ...(endereco_complemento !== undefined && { endereco_complemento: endereco_complemento?.trim() || null }),
+          ...(endereco_bairro !== undefined && { endereco_bairro: endereco_bairro?.trim() || null }),
+          ...(endereco_cidade !== undefined && { endereco_cidade: endereco_cidade?.trim() || null }),
+          ...(endereco_estado !== undefined && { endereco_estado: endereco_estado?.trim() || null }),
+          ...(endereco_cep !== undefined && { endereco_cep: endereco_cep?.trim() || null }),
+          ...(observacoes !== undefined && { observacoes: observacoes?.trim() || null })
+        })
+        .eq('id', id)
+        .select()
+        .single();
 
       if (error) {
         if (error.code === '23505') { // Unique constraint violation
@@ -322,7 +368,7 @@ export const clientesService = {
 
       return {
         success: true,
-        message: 'Cliente atualizado com sucesso'
+        data: cliente
       };
 
     } catch (error: any) {
@@ -331,33 +377,43 @@ export const clientesService = {
     }
   },
 
-  // REGRA DE NEGÓCIO: Deletar cliente (soft delete)
+  // Deletar cliente (soft delete)
   async deletar(id: number) {
     try {
-      // Verificar se cliente existe
-      const { data: clienteExistente } = await supabase
-        .from('clientes')
-        .select('id')
-        .eq('id', id)
-        .eq('status', 'ativo')
-        .single();
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
 
-      if (!clienteExistente) {
-        throw new Error('Cliente não encontrado');
+      // REGRA DE NEGÓCIO: Vendedor só pode deletar clientes criados por ele
+      if (isVendedor) {
+        // Verificar se o cliente pertence ao vendedor
+        const { data: cliente, error: errorBusca } = await supabase
+          .from('clientes')
+          .select('criado_por')
+          .eq('id', id)
+          .eq('criado_por', user.id)
+          .single();
+
+        if (errorBusca || !cliente) {
+          throw new Error('Cliente não encontrado ou você não tem permissão para excluí-lo');
+        }
       }
 
-      // REGRA DE NEGÓCIO: Verificar se cliente tem pedidos
-      const { data: pedidos } = await supabase
+      // REGRA DE NEGÓCIO: Verificar se o cliente tem pedidos
+      const { data: pedidos, error: errorPedidos } = await supabase
         .from('pedidos')
         .select('id')
         .eq('cliente_id', id)
         .limit(1);
 
-      if (pedidos && pedidos.length > 0) {
-        throw new Error('Não é possível excluir cliente que possui pedidos. Use a inativação.');
+      if (errorPedidos) {
+        throw new Error('Erro ao verificar pedidos do cliente');
       }
 
-      // REGRA DE NEGÓCIO: Soft delete - marcar como inativo ao invés de excluir
+      if (pedidos && pedidos.length > 0) {
+        throw new Error('Não é possível excluir o cliente pois ele possui pedidos cadastrados');
+      }
+
+      // Realizar soft delete
       const { error } = await supabase
         .from('clientes')
         .update({ status: 'inativo' })

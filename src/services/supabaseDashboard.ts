@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { authService } from './supabaseAuth';
 
 export interface DashboardStats {
   vendas_hoje: number;
@@ -42,70 +43,99 @@ export async function getDashboardMainStats(): Promise<DashboardStats> {
     const ontem = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString().split('T')[0];
     const semanaAtras = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
 
-    // Vendas de hoje
-    const { data: vendasHoje } = await supabase
+    // Obter usuário atual
+    const user = authService.getCurrentUser();
+    const isVendedor = user?.perfil === 'Vendedor';
+
+    // Base queries com filtro de vendedor se necessário
+    let vendasHojeQuery = supabase
       .from('pedidos')
       .select('valor_total')
       .gte('data_pedido', hoje)
       .eq('status_pagamento', 'pago');
 
-    // Vendas de ontem
-    const { data: vendasOntem } = await supabase
+    let vendasOntemQuery = supabase
       .from('pedidos')
       .select('valor_total')
       .gte('data_pedido', ontem)
       .lt('data_pedido', hoje)
       .eq('status_pagamento', 'pago');
 
-    // Pedidos ativos (não cancelados nem concluídos)
-    const { count: pedidosAtivos } = await supabase
+    let pedidosAtivosQuery = supabase
       .from('pedidos')
       .select('*', { count: 'exact', head: true })
       .not('status', 'in', '(cancelado,concluido)');
 
-    // Pedidos em preparo
-    const { count: pedidosPreparo } = await supabase
+    let pedidosPreparoQuery = supabase
       .from('pedidos')
       .select('*', { count: 'exact', head: true })
       .in('status', ['em_preparo', 'aguardando_producao', 'em_separacao']);
 
-    // Total de produtos ativos
+    let clientesQuery = supabase
+      .from('clientes')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'ativo');
+
+    let novosClientesQuery = supabase
+      .from('clientes')
+      .select('*', { count: 'exact', head: true })
+      .gte('data_cadastro', semanaAtras)
+      .eq('status', 'ativo');
+
+    // REGRA DE NEGÓCIO: Se for vendedor, filtrar por dados próprios
+    if (isVendedor && user?.id) {
+      vendasHojeQuery = vendasHojeQuery.eq('criado_por', user.id);
+      vendasOntemQuery = vendasOntemQuery.eq('criado_por', user.id);
+      pedidosAtivosQuery = pedidosAtivosQuery.eq('criado_por', user.id);
+      pedidosPreparoQuery = pedidosPreparoQuery.eq('criado_por', user.id);
+      clientesQuery = clientesQuery.eq('criado_por', user.id);
+      novosClientesQuery = novosClientesQuery.eq('criado_por', user.id);
+    }
+
+    // Executar queries
+    const [
+      { data: vendasHoje },
+      { data: vendasOntem },
+      { count: pedidosAtivos },
+      { count: pedidosPreparo },
+      { count: totalClientes },
+      { count: novosClientesSemana }
+    ] = await Promise.all([
+      vendasHojeQuery,
+      vendasOntemQuery,
+      pedidosAtivosQuery,
+      pedidosPreparoQuery,
+      clientesQuery,
+      novosClientesQuery
+    ]);
+
+    // Total de produtos ativos (só administradores e gerentes veem todos)
     const { count: totalProdutos } = await supabase
       .from('produtos')
       .select('*', { count: 'exact', head: true })
       .eq('status', 'ativo');
 
-    // Produtos com estoque baixo - fazendo join manual se a view não existir
-    const { data: produtosComEstoque } = await supabase
-      .from('produtos')
-      .select(`
-        id,
-        nome,
-        quantidade_minima,
-        estoque (
-          quantidade_atual
-        )
-      `)
-      .eq('status', 'ativo');
+    // Produtos com estoque baixo (só administradores e gerentes veem)
+    let produtosEstoqueBaixo = 0;
+    if (!isVendedor) {
+      const { data: produtosComEstoque } = await supabase
+        .from('produtos')
+        .select(`
+          id,
+          nome,
+          quantidade_minima,
+          estoque (
+            quantidade_atual
+          )
+        `)
+        .eq('status', 'ativo');
 
-    const produtosEstoqueBaixo = produtosComEstoque?.filter(produto => {
-      const estoque = produto.estoque as any;
-      const quantidadeAtual = estoque?.[0]?.quantidade_atual || 0;
-      return quantidadeAtual <= produto.quantidade_minima;
-    }).length || 0;
-
-    // Total de clientes ativos
-    const { count: totalClientes } = await supabase
-      .from('clientes')
-      .select('*', { count: 'exact', head: true })
-      .eq('status', 'ativo');
-
-    // Novos clientes da semana
-    const { count: novosClientesSemana } = await supabase
-      .from('clientes')
-      .select('*', { count: 'exact', head: true })
-      .gte('data_cadastro', semanaAtras)
-      .eq('status', 'ativo');
+      produtosEstoqueBaixo = produtosComEstoque?.filter(produto => {
+        const estoque = produto.estoque as any;
+        const quantidadeAtual = estoque?.[0]?.quantidade_atual || 0;
+        return quantidadeAtual <= produto.quantidade_minima;
+      }).length || 0;
+    }
 
     const vendasHojeTotal = vendasHoje?.reduce((sum, pedido) => sum + Number(pedido.valor_total), 0) || 0;
     const vendasOntemTotal = vendasOntem?.reduce((sum, pedido) => sum + Number(pedido.valor_total), 0) || 0;
@@ -119,7 +149,7 @@ export async function getDashboardMainStats(): Promise<DashboardStats> {
       variacao_vendas: variacaoVendas,
       pedidos_ativos: pedidosAtivos || 0,
       pedidos_preparo: pedidosPreparo || 0,
-      total_produtos: totalProdutos || 0,
+      total_produtos: !isVendedor ? (totalProdutos || 0) : 0, // Vendedor não vê contagem de produtos
       produtos_estoque_baixo: produtosEstoqueBaixo,
       total_clientes: totalClientes || 0,
       novos_clientes_semana: novosClientesSemana || 0,
@@ -143,7 +173,11 @@ export async function getPedidosRecentes(): Promise<PedidoRecente[]> {
   try {
     const hoje = new Date().toISOString().split('T')[0];
     
-    const { data: pedidos, error } = await supabase
+    // Obter usuário atual
+    const user = authService.getCurrentUser();
+    const isVendedor = user?.perfil === 'Vendedor';
+    
+    let query = supabase
       .from('pedidos')
       .select(`
         id,
@@ -158,6 +192,13 @@ export async function getPedidosRecentes(): Promise<PedidoRecente[]> {
       .gte('data_pedido', hoje)
       .order('data_pedido', { ascending: false })
       .limit(5);
+
+    // REGRA DE NEGÓCIO: Vendedor só vê seus pedidos
+    if (isVendedor && user?.id) {
+      query = query.eq('criado_por', user.id);
+    }
+
+    const { data: pedidos, error } = await query;
 
     if (error) throw error;
 

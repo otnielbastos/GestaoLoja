@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { authService } from './supabaseAuth';
 
 interface RelatorioDashboard {
   receita_total: number;
@@ -9,6 +10,9 @@ interface RelatorioDashboard {
   pedidos_anterior: number;
   ticket_medio_anterior: number;
   taxa_conversao_anterior: number;
+  crescimento_receita: number;
+  crescimento_pedidos: number;
+  crescimento_ticket: number;
 }
 
 interface VendasPorDia {
@@ -33,6 +37,24 @@ interface PedidoPorBairro {
   name: string;
   orders: number;
   percentage: number;
+}
+
+interface VendaPorPeriodo {
+  periodo: string;
+  total_vendas: number;
+  quantidade_pedidos: number;
+}
+
+interface ProdutoMaisVendido {
+  nome: string;
+  quantidade_vendida: number;
+  receita_total: number;
+}
+
+interface TopComprador {
+  nome: string;
+  total_gasto: number;
+  quantidade_pedidos: number;
 }
 
 // Helper para calcular período anterior
@@ -70,8 +92,6 @@ const obterDiasSemana = (): string[] => {
   return dias;
 };
 
-
-
 export const relatoriosService = {
   // Buscar dados do dashboard principal
   async obterDashboard(periodo: string = '7d'): Promise<RelatorioDashboard> {
@@ -91,23 +111,38 @@ export const relatoriosService = {
       
       const { inicio_atual, fim_atual, inicio_anterior, fim_anterior } = obterPeriodoAnterior(dias);
       
-      // Buscar pedidos do período atual
-      const { data: pedidosAtuais, error: errorAtuais } = await supabase
+      // Obter usuário atual
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+      
+      // Base queries
+      let pedidosAtuaisQuery = supabase
         .from('pedidos')
         .select('valor_total, status, data_pedido')
         .gte('data_pedido', inicio_atual)
         .lte('data_pedido', fim_atual)
         .in('status', ['entregue', 'concluido']);
       
-      if (errorAtuais) throw errorAtuais;
-      
-      // Buscar pedidos do período anterior
-      const { data: pedidosAnteriores, error: errorAnteriores } = await supabase
+      let pedidosAnterioresQuery = supabase
         .from('pedidos')
         .select('valor_total, status, data_pedido')
         .gte('data_pedido', inicio_anterior)
         .lte('data_pedido', fim_anterior)
         .in('status', ['entregue', 'concluido']);
+      
+      // REGRA DE NEGÓCIO: Vendedor só vê seus dados
+      if (isVendedor && user?.id) {
+        pedidosAtuaisQuery = pedidosAtuaisQuery.eq('criado_por', user.id);
+        pedidosAnterioresQuery = pedidosAnterioresQuery.eq('criado_por', user.id);
+      }
+      
+      // Buscar pedidos do período atual
+      const { data: pedidosAtuais, error: errorAtuais } = await pedidosAtuaisQuery;
+      
+      if (errorAtuais) throw errorAtuais;
+      
+      // Buscar pedidos do período anterior
+      const { data: pedidosAnteriores, error: errorAnteriores } = await pedidosAnterioresQuery;
       
       if (errorAnteriores) throw errorAnteriores;
       
@@ -121,39 +156,36 @@ export const relatoriosService = {
       const pedidos_anterior = pedidosAnteriores?.length || 0;
       const ticket_medio_anterior = pedidos_anterior > 0 ? receita_anterior / pedidos_anterior : 0;
       
-      // Se não houver dados, usar dados de exemplo para demonstração
-      if (receita_total === 0 && total_pedidos === 0) {
-        console.log('Usando dados de exemplo para demonstração dos relatórios');
-        return {
-          receita_total: 2890,
-          total_pedidos: 155,
-          ticket_medio: 18.65,
-          taxa_conversao: 3.2,
-          receita_anterior: 2512,
-          pedidos_anterior: 142,
-          ticket_medio_anterior: 17.69,
-          taxa_conversao_anterior: 3.7
-        };
-      }
+      // Calcular crescimento
+      const crescimento_receita = receita_anterior > 0 
+        ? ((receita_total - receita_anterior) / receita_anterior) * 100 
+        : receita_total > 0 ? 100 : 0;
       
-      // Taxa de conversão (simplificada - seria necessário dados de visitas)
-      const taxa_conversao = 3.2;
-      const taxa_conversao_anterior = 3.7;
+      const crescimento_pedidos = pedidos_anterior > 0 
+        ? ((total_pedidos - pedidos_anterior) / pedidos_anterior) * 100 
+        : total_pedidos > 0 ? 100 : 0;
       
+      const crescimento_ticket = ticket_medio_anterior > 0 
+        ? ((ticket_medio - ticket_medio_anterior) / ticket_medio_anterior) * 100 
+        : ticket_medio > 0 ? 100 : 0;
+
       return {
         receita_total,
         total_pedidos,
         ticket_medio,
-        taxa_conversao,
+        taxa_conversao: 0, // Placeholder - pode ser calculado se necessário
         receita_anterior,
         pedidos_anterior,
         ticket_medio_anterior,
-        taxa_conversao_anterior
+        taxa_conversao_anterior: 0, // Placeholder - pode ser calculado se necessário
+        crescimento_receita,
+        crescimento_pedidos,
+        crescimento_ticket
       };
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Erro ao obter dados do dashboard:', error);
-      throw new Error('Erro ao carregar dados do dashboard');
+      throw new Error(error.message || 'Erro interno do servidor');
     }
   },
 
@@ -164,12 +196,23 @@ export const relatoriosService = {
       const seteDiasAtras = new Date(hoje);
       seteDiasAtras.setDate(hoje.getDate() - 7);
       
-      const { data: pedidos, error } = await supabase
+      // Obter usuário atual
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+      
+      let query = supabase
         .from('pedidos')
         .select('valor_total, data_pedido')
         .gte('data_pedido', seteDiasAtras.toISOString())
         .lte('data_pedido', hoje.toISOString())
         .in('status', ['entregue', 'concluido']);
+      
+      // REGRA DE NEGÓCIO: Vendedor só vê seus dados
+      if (isVendedor && user?.id) {
+        query = query.eq('criado_por', user.id);
+      }
+      
+      const { data: pedidos, error } = await query;
       
       if (error) throw error;
       
@@ -450,6 +493,183 @@ export const relatoriosService = {
         { name: "Vila Nova", orders: 38, percentage: 18 },
         { name: "Outros", orders: 35, percentage: 17 },
       ];
+    }
+  },
+
+  // Obter vendas por período
+  async obterVendasPorPeriodo(
+    dataInicio: string, 
+    dataFim: string, 
+    agruparPor: 'dia' | 'semana' | 'mes' = 'dia'
+  ): Promise<VendaPorPeriodo[]> {
+    try {
+      // Obter usuário atual
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+      
+      let query = supabase
+        .from('pedidos')
+        .select('data_pedido, valor_total')
+        .gte('data_pedido', dataInicio)
+        .lte('data_pedido', dataFim)
+        .in('status', ['entregue', 'concluido']);
+      
+      // REGRA DE NEGÓCIO: Vendedor só vê seus dados
+      if (isVendedor && user?.id) {
+        query = query.eq('criado_por', user.id);
+      }
+      
+      const { data: pedidos, error } = await query;
+      
+      if (error) throw error;
+      
+      // Agrupar dados por período
+      const vendas: { [key: string]: VendaPorPeriodo } = {};
+      
+      pedidos?.forEach(pedido => {
+        const data = new Date(pedido.data_pedido);
+        let chave: string;
+        
+        switch (agruparPor) {
+          case 'semana':
+            const inicioSemana = new Date(data);
+            inicioSemana.setDate(data.getDate() - data.getDay());
+            chave = inicioSemana.toISOString().split('T')[0];
+            break;
+          case 'mes':
+            chave = `${data.getFullYear()}-${String(data.getMonth() + 1).padStart(2, '0')}`;
+            break;
+          default:
+            chave = pedido.data_pedido.split('T')[0];
+        }
+        
+        if (!vendas[chave]) {
+          vendas[chave] = {
+            periodo: chave,
+            total_vendas: 0,
+            quantidade_pedidos: 0
+          };
+        }
+        
+        vendas[chave].total_vendas += pedido.valor_total || 0;
+        vendas[chave].quantidade_pedidos += 1;
+      });
+      
+      return Object.values(vendas).sort((a, b) => a.periodo.localeCompare(b.periodo));
+      
+    } catch (error: any) {
+      console.error('Erro ao obter vendas por período:', error);
+      throw new Error(error.message || 'Erro interno do servidor');
+    }
+  },
+
+  // Obter produtos mais vendidos
+  async obterProdutosMaisVendidos(dataInicio: string, dataFim: string, limite: number = 10): Promise<ProdutoMaisVendido[]> {
+    try {
+      // Obter usuário atual
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+      
+      let query = supabase
+        .from('itens_pedido')
+        .select(`
+          quantidade,
+          subtotal,
+          produto:produtos(nome),
+          pedido:pedidos!inner(data_pedido, status)
+        `)
+        .gte('pedido.data_pedido', dataInicio)
+        .lte('pedido.data_pedido', dataFim)
+        .in('pedido.status', ['entregue', 'concluido']);
+      
+      // REGRA DE NEGÓCIO: Vendedor só vê dados dos seus pedidos
+      if (isVendedor && user?.id) {
+        query = query.eq('pedido.criado_por', user.id);
+      }
+      
+      const { data: itens, error } = await query;
+      
+      if (error) throw error;
+      
+      // Agrupar por produto
+      const produtos: { [key: string]: ProdutoMaisVendido } = {};
+      
+      itens?.forEach(item => {
+        const nomeProduto = (item.produto as any)?.nome || 'Produto não encontrado';
+        
+        if (!produtos[nomeProduto]) {
+          produtos[nomeProduto] = {
+            nome: nomeProduto,
+            quantidade_vendida: 0,
+            receita_total: 0
+          };
+        }
+        
+        produtos[nomeProduto].quantidade_vendida += item.quantidade || 0;
+        produtos[nomeProduto].receita_total += item.subtotal || 0;
+      });
+      
+      return Object.values(produtos)
+        .sort((a, b) => b.quantidade_vendida - a.quantidade_vendida)
+        .slice(0, limite);
+      
+    } catch (error: any) {
+      console.error('Erro ao obter produtos mais vendidos:', error);
+      throw new Error(error.message || 'Erro interno do servidor');
+    }
+  },
+
+  // Obter clientes que mais compraram
+  async obterClientesTopCompradores(dataInicio: string, dataFim: string, limite: number = 10): Promise<TopComprador[]> {
+    try {
+      // Obter usuário atual
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+      
+      let query = supabase
+        .from('pedidos')
+        .select(`
+          valor_total,
+          cliente:clientes(nome)
+        `)
+        .gte('data_pedido', dataInicio)
+        .lte('data_pedido', dataFim)
+        .in('status', ['entregue', 'concluido']);
+      
+      // REGRA DE NEGÓCIO: Vendedor só vê dados dos seus pedidos/clientes
+      if (isVendedor && user?.id) {
+        query = query.eq('criado_por', user.id);
+      }
+      
+      const { data: pedidos, error } = await query;
+      
+      if (error) throw error;
+      
+      // Agrupar por cliente
+      const clientes: { [key: string]: TopComprador } = {};
+      
+      pedidos?.forEach(pedido => {
+        const nomeCliente = (pedido.cliente as any)?.nome || 'Cliente não encontrado';
+        
+        if (!clientes[nomeCliente]) {
+          clientes[nomeCliente] = {
+            nome: nomeCliente,
+            total_gasto: 0,
+            quantidade_pedidos: 0
+          };
+        }
+        
+        clientes[nomeCliente].total_gasto += pedido.valor_total || 0;
+        clientes[nomeCliente].quantidade_pedidos += 1;
+      });
+      
+      return Object.values(clientes)
+        .sort((a, b) => b.total_gasto - a.total_gasto)
+        .slice(0, limite);
+      
+    } catch (error: any) {
+      console.error('Erro ao obter clientes top compradores:', error);
+      throw new Error(error.message || 'Erro interno do servidor');
     }
   }
 }; 

@@ -64,7 +64,7 @@ export function Customers() {
     } catch (error: any) {
       toast({
         title: "Erro",
-        description: error.response?.data?.message || "Ocorreu um erro ao salvar o cliente.",
+        description: error.message || "Ocorreu um erro ao salvar o cliente.",
         variant: "destructive",
       });
     }
@@ -290,7 +290,7 @@ export function Customers() {
           setEditingCustomer(null);
         }}
         onSubmit={handleFormSubmit}
-        customer={editingCustomer ? getCustomer(editingCustomer) : undefined}
+        customer={editingCustomer ? customers.find(c => c.id === editingCustomer) : undefined}
       />
 
       <DeleteConfirmModal
