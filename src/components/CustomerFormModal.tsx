@@ -160,20 +160,19 @@ export function CustomerFormModal({ isOpen, onClose, onSubmit, customer }: Custo
                 />
               </div>
               <div>
-                <Label htmlFor="phone">Telefone *</Label>
+                <Label htmlFor="phone">Telefone</Label>
                 <Input
                   id="phone"
                   value={formData.phone}
                   onChange={(e) => handleChange('phone', e.target.value)}
                   placeholder="(11) 99999-9999"
-                  required
                 />
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="tipo_pessoa">Tipo de Pessoa *</Label>
+                <Label htmlFor="tipo_pessoa">Tipo de Pessoa</Label>
                 <Select value={formData.tipo_pessoa} onValueChange={(value) => handleChange('tipo_pessoa', value)}>
                   <SelectTrigger>
                     <SelectValue />
@@ -207,12 +206,11 @@ export function CustomerFormModal({ isOpen, onClose, onSubmit, customer }: Custo
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="md:col-span-2">
-                <Label htmlFor="endereco_rua">Rua/Avenida *</Label>
+                <Label htmlFor="endereco_rua">Rua/Avenida</Label>
                 <Input
                   id="endereco_rua"
                   value={formData.endereco_rua}
                   onChange={(e) => handleChange('endereco_rua', e.target.value)}
-                  required
                 />
               </div>
               <div>
@@ -237,12 +235,11 @@ export function CustomerFormModal({ isOpen, onClose, onSubmit, customer }: Custo
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <Label htmlFor="neighborhood">Bairro *</Label>
+                <Label htmlFor="neighborhood">Bairro</Label>
                 <Input
                   id="neighborhood"
                   value={formData.neighborhood}
                   onChange={(e) => handleChange('neighborhood', e.target.value)}
-                  required
                 />
               </div>
               <div>
