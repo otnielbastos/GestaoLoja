@@ -22,6 +22,7 @@ export function Orders() {
   const [paymentOrder, setPaymentOrder] = useState<string | null>(null);
   const [statistics, setStatistics] = useState<any>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [filterVersion, setFilterVersion] = useState(0); // Para forçar re-renderização
   
   // Estados dos filtros
   const [filters, setFilters] = useState(() => {
@@ -73,13 +74,6 @@ export function Orders() {
     loadStatistics();
   }, []);
 
-  // Aplicar filtros ao carregar o componente, mas só depois que filters estiver pronto
-  useEffect(() => {
-    if (filters.startDate && filters.endDate) {
-      applyFilters();
-    }
-  }, [filters.startDate, filters.endDate]); // Só executa quando as datas estiverem definidas
-
   const loadStatistics = async () => {
     try {
       const stats = await getStatistics();
@@ -91,15 +85,12 @@ export function Orders() {
 
   const applyFilters = async () => {
     try {
-      const searchFilters: any = {};
+      await refreshOrders();
       
-      if (filters.startDate) searchFilters.startDate = filters.startDate;
-      if (filters.endDate) searchFilters.endDate = filters.endDate;
-      if (filters.status) searchFilters.status = filters.status;
-      if (filters.tipo) searchFilters.tipo = filters.tipo;
-      if (filters.paymentStatus) searchFilters.paymentStatus = filters.paymentStatus;
-
-      await searchOrders(searchFilters);
+      toast({
+        title: "Filtros aplicados",
+        description: "A lista foi atualizada com sucesso.",
+      });
     } catch (error) {
       console.error('Erro ao aplicar filtros:', error);
       toast({
@@ -138,6 +129,8 @@ export function Orders() {
         ...prev,
         [field]: value
       }));
+      // Forçar re-renderização para aplicar filtros em tempo real
+      setFilterVersion(v => v + 1);
     } catch (error) {
       console.error('Erro ao alterar filtro:', error);
     }
@@ -359,11 +352,47 @@ export function Orders() {
     return timeString.substring(0, 5);
   };
 
-  const filteredOrders = orders.filter(order =>
-    order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.customerPhone.includes(searchTerm)
-  );
+  // Aplicar filtros em tempo real (key: filterVersion força re-cálculo)
+  const filteredOrders = orders.filter(order => {
+    // Filtro de busca por texto
+    const matchesSearch = searchTerm === "" || 
+      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.customerPhone.includes(searchTerm);
+    
+    if (!matchesSearch) return false;
+    
+    // Filtro de data
+    if (filters.startDate) {
+      const orderDate = new Date(order.date);
+      const startDate = new Date(filters.startDate);
+      if (orderDate < startDate) return false;
+    }
+    
+    if (filters.endDate) {
+      const orderDate = new Date(order.date);
+      const endDate = new Date(filters.endDate);
+      endDate.setHours(23, 59, 59, 999); // Incluir o dia completo
+      if (orderDate > endDate) return false;
+    }
+    
+    // Filtro de status
+    if (filters.status && filters.status !== "" && filters.status !== "all") {
+      if (order.status !== filters.status) return false;
+    }
+    
+    // Filtro de tipo
+    if (filters.tipo && filters.tipo !== "" && filters.tipo !== "all") {
+      if (order.tipo !== filters.tipo) return false;
+    }
+    
+    // Filtro de status de pagamento
+    if (filters.paymentStatus && filters.paymentStatus !== "" && filters.paymentStatus !== "all") {
+      if (order.paymentStatus !== filters.paymentStatus) return false;
+    }
+    
+    return true;
+  });
 
   if (loading) {
     return (
@@ -578,14 +607,31 @@ export function Orders() {
         </Card>
       )}
 
+      {/* Informação sobre filtros aplicados */}
+      {(filters.status || filters.tipo || filters.paymentStatus) && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardContent className="p-4">
+            <p className="text-sm text-blue-700">
+              <strong>{filteredOrders.length}</strong> {filteredOrders.length === 1 ? 'pedido encontrado' : 'pedidos encontrados'} 
+              {' '}de um total de <strong>{orders.length}</strong>
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Orders List */}
       <div className="grid gap-4">
-        {orders.length === 0 ? (
+        {filteredOrders.length === 0 ? (
           <div className="text-center py-8">
             <p className="text-gray-500">Nenhum pedido encontrado</p>
+            {orders.length > 0 && (
+              <p className="text-sm text-gray-400 mt-2">
+                Tente ajustar os filtros para ver mais resultados
+              </p>
+            )}
           </div>
         ) : (
-          orders.map((order) => (
+          filteredOrders.map((order) => (
             <Card key={order.id} className="hover:shadow-lg transition-shadow duration-200 border-0 shadow-md">
               <CardContent className="p-6">
                 <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
