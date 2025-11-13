@@ -112,8 +112,9 @@ git push
 
 ### Install Command:
 ```bash
-npm install && cd Site && npm install && cd ..
+npm install
 ```
+*Nota: O script `build-all.cjs` instala automaticamente as dependências do Site se necessário.*
 
 ### Build Command:
 ```bash

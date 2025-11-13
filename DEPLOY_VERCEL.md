@@ -33,13 +33,14 @@ O projeto já está configurado com:
 
 ### 2. Instalação de Dependências
 
-Certifique-se de instalar as dependências de ambos os projetos:
+As dependências são instaladas automaticamente durante o build:
 
 ```bash
-# Dependências do projeto raiz
+# Dependências do projeto raiz (obrigatório)
 npm install
 
-# Dependências do Site
+# Dependências do Site (instaladas automaticamente pelo script de build)
+# Não é necessário instalar manualmente, mas você pode fazer se quiser testar localmente:
 cd Site
 npm install
 cd ..
@@ -75,9 +76,9 @@ VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
 
 - **Framework Preset:** Vite
 - **Root Directory:** `.` (raiz do projeto)
-- **Build Command:** `npm run build` (executará o script build-all.js)
+- **Build Command:** `npm run build` (executará o script build-all.cjs)
 - **Output Directory:** `dist`
-- **Install Command:** `npm install && cd Site && npm install && cd ..`
+- **Install Command:** `npm install` (padrão - o script build-all.cjs instala as dependências do Site automaticamente)
 
 #### 4.3. Adicione as Variáveis de Ambiente
 
@@ -208,12 +209,12 @@ npm run preview:admin  # Preview do Admin
 ### Verificação Antes do Deploy
 
 ```bash
-# 1. Limpar node_modules e reinstalar
+# 1. Limpar e reinstalar (opcional, apenas se houver problemas)
 rm -rf node_modules Site/node_modules
 npm install
-cd Site && npm install && cd ..
 
 # 2. Testar build localmente
+# Este comando instalará as dependências do Site automaticamente se necessário
 npm run build
 
 # 3. Verificar estrutura do dist
@@ -228,9 +229,10 @@ ls -la dist/admin/
 **Sintoma:** Build interrompido com erro
 
 **Soluções:**
-- Verifique se o Install Command está correto: `npm install && cd Site && npm install && cd ..`
-- Certifique-se que `build-all.js` tem permissões corretas
+- Verifique se o Install Command está correto: `npm install`
+- O script `build-all.cjs` instala automaticamente as dependências do Site
 - Execute `npm run build` localmente para reproduzir o erro
+- Verifique os logs da Vercel para detalhes específicos
 
 ### 2. Admin não carrega (/admin retorna 404)
 

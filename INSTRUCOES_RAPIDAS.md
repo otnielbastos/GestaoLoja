@@ -10,33 +10,27 @@ Ambos são servidos a partir do **mesmo domínio** na Vercel! 🎉
 
 ## 🚀 Para Fazer Deploy na Vercel
 
-### 1. Instale as dependências do Site (se ainda não fez)
-```bash
-cd Site
-npm install
-cd ..
-```
-
-### 2. Teste localmente
+### 1. Teste localmente (as dependências do Site serão instaladas automaticamente)
 ```bash
 npm run build
 ```
 
 Se aparecer "✅ Build concluído com sucesso!", está tudo certo!
 
-### 3. Faça push para o repositório
+### 2. Faça push para o repositório
 ```bash
 git add .
 git commit -m "Configuração de deploy unificado"
 git push
 ```
 
-### 4. Configure na Vercel Dashboard
+### 3. Configure na Vercel Dashboard
 
 **Install Command:**
 ```
-npm install && cd Site && npm install && cd ..
+npm install
 ```
+*Nota: As dependências do Site são instaladas automaticamente pelo script de build.*
 
 **Build Command:**
 ```
@@ -52,7 +46,7 @@ dist
 - `VITE_SUPABASE_URL` - URL do seu projeto Supabase
 - `VITE_SUPABASE_ANON_KEY` - Chave anônima do Supabase
 
-### 5. Configure o domínio
+### 4. Configure o domínio
 
 Na Vercel:
 1. Vá em **Settings** → **Domains**
@@ -86,10 +80,12 @@ npm run dev:admin
 
 ## ✅ Checklist Antes do Deploy
 
-- [ ] Dependências instaladas (`npm install` na raiz e em `Site/`)
+- [ ] Dependências da raiz instaladas (`npm install`)
 - [ ] Build local testado (`npm run build`)
 - [ ] Variáveis de ambiente configuradas na Vercel
-- [ ] Install Command configurado corretamente
+- [ ] Install Command configurado: `npm install`
+- [ ] Build Command configurado: `npm run build`
+- [ ] Output Directory configurado: `dist`
 - [ ] Domínio configurado na Vercel
 - [ ] URLs permitidas configuradas no Supabase
 
