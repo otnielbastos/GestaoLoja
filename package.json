@@ -4,12 +4,17 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "cd Site && npm run dev",
+    "dev:admin": "vite",
+    "dev:site": "cd Site && npm run dev",
+    "build": "node build-all.cjs",
+    "build:admin": "vite build",
+    "build:site": "cd Site && npm run build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "vercel-build": "npm run build"
+    "preview": "cd Site && npm run preview",
+    "preview:admin": "vite preview --port 8081",
+    "vercel-build": "node build-all.cjs"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.0",
