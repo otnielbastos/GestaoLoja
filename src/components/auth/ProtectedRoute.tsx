@@ -17,7 +17,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({
   children,
   requiredPermission,
   requiredRole,
-  fallbackPath = '/login'
+  fallbackPath = '/admin/login'
 }) => {
   const { isAuthenticated, isLoading, checkPermission, hasRole } = useAuth();
   const location = useLocation();
