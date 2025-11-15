@@ -6,7 +6,7 @@ export default function Menu() {
       name: 'Nhoque Tradicional',
       description: 'Nhoque clássico feito com batata e farinha, sabor autêntico da tradição italiana.',
       price: 'R$ 40,00',
-      image: 'https://readdy.ai/api/search-image?query=Traditional%20potato%20gnocchi%20on%20white%20plate%20with%20simple%20tomato%20sauce%2C%20classic%20Italian%20pasta%20dish%2C%20rustic%20wooden%20table%2C%20traditional%20recipe%2C%20homemade%20appearance%2C%20appetizing%20presentation%2C%20golden%20lighting%2C%20restaurant%20quality%20food%20photography&width=400&height=300&seq=traditional-gnocchi&orientation=landscape',
+      image: '/images/website/menu-nhoque-tradicional.png',
       category: 'nhoque'
     },
     {
@@ -14,7 +14,7 @@ export default function Menu() {
       name: 'Nhoque Recheado Calabresa com Mussarela',
       description: 'Nhoque especial recheado com calabresa defumada e mussarela derretida.',
       price: 'R$ 40,00',
-      image: 'https://readdy.ai/api/search-image?query=Stuffed%20gnocchi%20with%20pepperoni%20and%20mozzarella%20cheese%20filling%2C%20cut%20open%20showing%20melted%20cheese%20and%20meat%20inside%2C%20Italian%20comfort%20food%2C%20rich%20and%20hearty%20meal%2C%20appetizing%20close-up%20photography%2C%20warm%20lighting%2C%20restaurant%20presentation&width=400&height=300&seq=calabresa-gnocchi&orientation=landscape',
+      image: '/images/website/menu-nhoque-calabresa-mussarela.png',
       category: 'nhoque'
     },
     {
@@ -22,7 +22,7 @@ export default function Menu() {
       name: 'Nhoque Recheado Mussarela',
       description: 'Nhoque cremoso recheado com mussarela de primeira qualidade.',
       price: 'R$ 40,00',
-      image: 'https://readdy.ai/api/search-image?query=Cheese-filled%20gnocchi%20with%20melted%20mozzarella%20center%2C%20creamy%20texture%2C%20golden%20cheese%20stretching%2C%20comfort%20food%20photography%2C%20Italian%20cuisine%2C%20appetizing%20presentation%2C%20warm%20restaurant%20lighting%2C%20premium%20quality%20ingredients&width=400&height=300&seq=mozzarella-gnocchi&orientation=landscape',
+      image: '/images/website/menu-nhoque-mussarela.png',
       category: 'nhoque'
     },
     {
@@ -30,7 +30,7 @@ export default function Menu() {
       name: 'Nhoque Recheado Mussarela com Catupiry',
       description: 'Combinação irresistível de mussarela e catupiry cremoso.',
       price: 'R$ 40,00',
-      image: 'https://readdy.ai/api/search-image?query=Gourmet%20gnocchi%20filled%20with%20mozzarella%20and%20cream%20cheese%2C%20ultra%20creamy%20texture%2C%20premium%20cheese%20combination%2C%20Brazilian-Italian%20fusion%20cuisine%2C%20rich%20and%20indulgent%20meal%2C%20professional%20food%20photography%2C%20elegant%20presentation&width=400&height=300&seq=catupiry-gnocchi&orientation=landscape',
+      image: '/images/website/menu-nhoque-mussarela-catupiry.png',
       category: 'nhoque'
     },
     {
@@ -38,7 +38,7 @@ export default function Menu() {
       name: 'Nhoque Recheado Presunto com Mussarela',
       description: 'Nhoque saboroso com recheio de presunto e mussarela.',
       price: 'R$ 40,00',
-      image: 'https://readdy.ai/api/search-image?query=Ham%20and%20cheese%20stuffed%20gnocchi%2C%20savory%20filling%20with%20premium%20ham%20and%20mozzarella%2C%20hearty%20Italian%20pasta%20dish%2C%20comfort%20food%20presentation%2C%20appetizing%20cross-section%20view%2C%20restaurant%20quality%20photography%2C%20warm%20lighting&width=400&height=300&seq=ham-gnocchi&orientation=landscape',
+      image: '/images/website/menu-nhoque-presunto-mussarela.png',
       category: 'nhoque'
     },
     {
@@ -46,7 +46,7 @@ export default function Menu() {
       name: 'Molho ao Sugo Extrato',
       description: 'Molho de tomate concentrado com ervas finas e temperos especiais.',
       price: 'R$ 20,00',
-      image: 'https://readdy.ai/api/search-image?query=Rich%20tomato%20sauce%20in%20glass%20jar%2C%20concentrated%20sugo%20with%20herbs%2C%20Italian%20pasta%20sauce%2C%20deep%20red%20color%2C%20traditional%20recipe%2C%20premium%20quality%20sauce%2C%20kitchen%20ingredients%20photography%2C%20rustic%20presentation&width=400&height=300&seq=sugo-extrato&orientation=landscape',
+      image: '/images/website/menu-molho-sugo-extrato.png',
       category: 'molho'
     },
     {
@@ -54,7 +54,7 @@ export default function Menu() {
       name: 'Molho ao Sugo Natural',
       description: 'Molho de tomate natural com manjericão fresco e alho.',
       price: 'R$ 20,00',
-      image: 'https://readdy.ai/api/search-image?query=Natural%20tomato%20sauce%20with%20fresh%20basil%20leaves%2C%20homemade%20pasta%20sauce%2C%20bright%20red%20color%2C%20fresh%20herbs%2C%20traditional%20Italian%20cooking%2C%20glass%20container%2C%20kitchen%20ingredients%2C%20natural%20lighting%2C%20appetizing%20presentation&width=400&height=300&seq=sugo-natural&orientation=landscape',
+      image: '/images/website/menu-molho-sugo-natural.png',
       category: 'molho'
     },
     {
@@ -62,7 +62,7 @@ export default function Menu() {
       name: 'Molho Bolonhesa Extrato',
       description: 'Molho bolonhesa concentrado com carne moída e tomates selecionados.',
       price: 'R$ 20,00',
-      image: 'https://readdy.ai/api/search-image?query=Rich%20bolognese%20sauce%20with%20ground%20meat%2C%20concentrated%20Italian%20meat%20sauce%2C%20deep%20red%20color%20with%20visible%20meat%20pieces%2C%20traditional%20recipe%2C%20premium%20pasta%20sauce%2C%20glass%20jar%20presentation%2C%20appetizing%20food%20photography&width=400&height=300&seq=bolognese&orientation=landscape',
+      image: '/images/website/menu-molho-bolonhesa.png',
       category: 'molho'
     }
   ];

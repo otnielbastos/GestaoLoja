@@ -5,19 +5,20 @@ export default function Benefits() {
       icon: 'ri-heart-line',
       title: 'Fresco e Artesanal',
       description: 'Feito com ingredientes de alta qualidade, mantendo o sabor caseiro tradicional da Itália.',
-      image: 'https://readdy.ai/api/search-image?query=Fresh%20artisanal%20pasta%20ingredients%20on%20marble%20counter%2C%20high%20quality%20flour%2C%20fresh%20eggs%2C%20herbs%2C%20traditional%20Italian%20cooking%20preparation%2C%20clean%20kitchen%20workspace%2C%20natural%20lighting%2C%20premium%20food%20ingredients%2C%20rustic%20wooden%20utensils&width=400&height=300&seq=fresh-artisanal&orientation=landscape'
+      // image: '/images/website/benefit-fresh-artisanal.jpg'
+      image: '/images/website/Massa2.png'
     },
     {
       icon: 'ri-time-line',
       title: 'Conveniência Total',
       description: 'Refeições deliciosas prontas em poucos minutos. Perfeito para o dia a dia corrido.',
-      image: 'https://readdy.ai/api/search-image?query=Quick%20and%20convenient%20meal%20preparation%2C%20steaming%20hot%20gnocchi%20in%20modern%20kitchen%2C%20timer%20showing%20few%20minutes%2C%20busy%20lifestyle%20cooking%20solution%2C%20efficient%20meal%20prep%2C%20contemporary%20kitchen%20setting%2C%20time-saving%20cooking&width=400&height=300&seq=convenience&orientation=landscape'
+      image: '/images/website/benefit-convenience.jpg'
     },
     {
       icon: 'ri-restaurant-line',
       title: 'Variedade Única',
       description: 'Diversidade de sabores e recheios especiais, além de molhos artesanais para acompanhar.',
-      image: 'https://readdy.ai/api/search-image?query=Variety%20of%20colorful%20gnocchi%20with%20different%20fillings%20and%20sauces%2C%20multiple%20plates%20showcasing%20different%20flavors%2C%20cheese-filled%2C%20meat-filled%2C%20traditional%20varieties%2C%20Italian%20restaurant%20presentation%2C%20appetizing%20food%20display&width=400&height=300&seq=variety&orientation=landscape'
+      image: '/images/website/benefit-variety.png'
     }
   ];
 

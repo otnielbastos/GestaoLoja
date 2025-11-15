@@ -13,7 +13,7 @@ export default function Hero() {
     <section 
       className="relative min-h-screen flex items-center justify-center bg-cover bg-center"
       style={{
-        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://readdy.ai/api/search-image?query=Delicious%20homemade%20gnocchi%20pasta%20with%20rich%20tomato%20sauce%20and%20fresh%20basil%20leaves%20on%20rustic%20wooden%20table%2C%20warm%20Italian%20kitchen%20atmosphere%2C%20golden%20lighting%2C%20appetizing%20food%20photography%2C%20cozy%20restaurant%20ambiance%2C%20traditional%20Italian%20cooking%2C%20steam%20rising%20from%20hot%20pasta&width=1920&height=1080&seq=hero-gnocchi&orientation=landscape')`
+        backgroundImage: `linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('/images/website/hero-gnocchi.jpg')`
       }}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
