@@ -88,26 +88,32 @@ export default function OrderForm() {
 
       const total = calculateTotal();
 
-      const formData = new FormData();
-      formData.append('nome', customerData.name);
-      formData.append('telefone', customerData.phone);
-      formData.append('endereco', customerData.address);
-      formData.append('observacoes', customerData.observations);
-      formData.append('pedido', orderDetails);
-      formData.append('total', `R$ ${total.toFixed(2)}`);
-      formData.append('email_destino', 'silosabores@gmail.com');
+      // URL da API do backend (usa variável de ambiente ou localhost por padrão)
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-      const response = await fetch('https://readdy.ai/api/form/d4aja2qp4k429g8lb7a0', {
+      const response = await fetch(`${API_URL}/api/encomendas`, {
         method: 'POST',
-        body: formData
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          nome: customerData.name,
+          telefone: customerData.phone,
+          endereco: customerData.address,
+          observacoes: customerData.observations,
+          pedido: orderDetails,
+          total: `R$ ${total.toFixed(2)}`
+        })
       });
 
-      if (response.ok) {
+      const data = await response.json();
+
+      if (response.ok && data.success) {
         setSubmitMessage('Encomenda enviada com sucesso! Entraremos em contato em breve para confirmar os detalhes, pagamento e entrega.');
         setOrderItems(products.map(p => ({ productId: p.id, quantity: 0 })));
         setCustomerData({ name: '', phone: '', address: '', observations: '' });
       } else {
-        setSubmitMessage('Erro ao enviar encomenda. Tente novamente.');
+        setSubmitMessage(data.message || 'Erro ao enviar encomenda. Tente novamente.');
       }
     } catch (error) {
       setSubmitMessage('Erro ao enviar encomenda. Verifique sua conexão e tente novamente.');

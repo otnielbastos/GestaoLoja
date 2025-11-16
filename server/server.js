@@ -1,3 +1,5 @@
+// Carregar variáveis de ambiente do arquivo .env localizado na pasta do servidor
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -13,6 +15,7 @@ const clientesRoutes = require('./routes/clientes');
 const pedidosRoutes = require('./routes/pedidos');
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
+const encomendasRoutes = require('./routes/encomendas');
 
 const app = express();
 
@@ -94,19 +97,22 @@ app.use((req, res, next) => {
     next();
 });
 
-// Teste da conexão com o banco
+// Teste da conexão com o banco (não bloqueia o servidor se falhar)
 pool.getConnection()
     .then(connection => {
-        console.log('Conexão com o banco de dados MySQL estabelecida com sucesso!');
+        console.log('✅ Conexão com o banco de dados MySQL estabelecida com sucesso!');
         connection.release();
     })
     .catch(err => {
-        console.error('Erro ao conectar ao banco de dados:', err);
-        process.exit(1);
+        console.warn('⚠️  Aviso: Não foi possível conectar ao banco de dados MySQL.');
+        console.warn('   O servidor continuará rodando, mas funcionalidades que dependem do banco não estarão disponíveis.');
+        console.warn('   A rota de encomendas (envio de e-mails) funcionará normalmente.');
+        // Não encerra o servidor - permite que rotas que não dependem do banco funcionem
     });
 
 // Rotas de autenticação (públicas)
 app.use('/api/auth', authRoutes);
+app.use('/api/encomendas', encomendasRoutes);
 
 // Rotas protegidas
 app.use('/api/users', usersRoutes);
