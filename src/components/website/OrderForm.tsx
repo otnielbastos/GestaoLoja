@@ -91,10 +91,21 @@ export default function OrderForm() {
       // URL da API do backend (usa variável de ambiente ou localhost por padrão)
       const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001';
 
-      const response = await fetch(`${API_URL}/api/encomendas`, {
+      // Construir a URL correta da função:
+      // - Se VITE_API_URL já aponta para Supabase Functions (ex.: https://<ref>.functions.supabase.co),
+      //   devemos chamar apenas "/encomendas".
+      // - Garanta que VITE_API_URL NÃO contenha caminho adicional (não incluir /encomendas).
+      const endpoint = `${API_URL.replace(/\/+$/, '')}/encomendas`;
+
+      // Headers para Edge Functions do Supabase:
+      // - Authorization e apikey com o anon key
+      const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...(SUPABASE_ANON ? { Authorization: `Bearer ${SUPABASE_ANON}`, apikey: SUPABASE_ANON } : {})
         },
         body: JSON.stringify({
           nome: customerData.name,
