@@ -9,10 +9,12 @@ import { ProductFormModal } from "@/components/ProductFormModal";
 import { DeleteConfirmModal } from "@/components/DeleteConfirmModal";
 import { getImageUrl } from "@/services/api";
 import { usePageAccess } from "@/components/ProtectedComponent";
+import { useToast } from "@/hooks/use-toast";
 
 export function Products() {
   const { products, loading, error, addProduct, updateProduct, deleteProduct } = useProducts();
   const { hasActionAccess } = usePageAccess('produtos');
+  const { toast } = useToast();
   const [searchTerm, setSearchTerm] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [typeFilter, setTypeFilter] = useState("");
@@ -72,11 +74,20 @@ export function Products() {
     if (deletingProduct) {
       try {
         await deleteProduct(deletingProduct.id);
+        toast({
+          title: "Produto excluído",
+          description: "O produto foi excluído com sucesso.",
+        });
         setIsDeleteModalOpen(false);
         setDeletingProduct(null);
       } catch (error: any) {
         console.error('Error deleting product:', error);
-        // Handle error (show toast, etc.)
+        toast({
+          title: "Erro ao excluir produto",
+          description: error.message || "Não foi possível excluir o produto. Verifique se não há pedidos relacionados.",
+          variant: "destructive",
+          duration: 5000,
+        });
       }
     }
   };
