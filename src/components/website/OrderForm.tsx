@@ -16,7 +16,7 @@ interface OrderItem {
 
 export default function OrderForm() {
   const products: Product[] = [
-    { id: 1, name: 'Nhoque Tradicional', price: 40.00, category: 'nhoque' },
+    { id: 1, name: 'Nhoque Tradicional', price: 25.00, category: 'nhoque' },
     { id: 2, name: 'Nhoque Recheado Calabresa com Mussarela', price: 40.00, category: 'nhoque' },
     { id: 3, name: 'Nhoque Recheado Mussarela', price: 40.00, category: 'nhoque' },
     { id: 4, name: 'Nhoque Recheado Mussarela com Catupiry', price: 40.00, category: 'nhoque' },
