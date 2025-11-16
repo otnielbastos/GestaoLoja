@@ -19,9 +19,10 @@ export default function Header() {
               alt="Silo Sabores Gourmet" 
               className="h-10 sm:h-12 md:h-16 w-auto"
             />
-            <h1 className="text-base sm:text-xl md:text-2xl font-bold text-gray-900">
+            <h1 className="text-lg sm:text-2xl md:text-3xl font-bold text-gray-900">
               Silo Sabores Gourmet
             </h1>
+
           </div>
           <nav className="hidden md:flex items-center space-x-8">
             <a href="#beneficios" className="text-gray-700 hover:text-red-600 transition-colors cursor-pointer">
