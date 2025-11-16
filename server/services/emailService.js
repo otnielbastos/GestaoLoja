@@ -35,6 +35,7 @@ const sendOrderEmail = async (orderData) => {
   const emailDestino = 'silosabores@gmail.com';
 
   const transporter = createTransporter();
+  const logoUrl = process.env.EMAIL_LOGO_URL;
 
   const mailOptions = {
     from: process.env.EMAIL_USER || 'silosabores@gmail.com',
@@ -46,61 +47,71 @@ const sendOrderEmail = async (orderData) => {
       <head>
         <meta charset="utf-8">
         <style>
-          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-          .container { max-width: 600px; margin: 0 auto; padding: 20px; }
-          .header { background-color: #dc2626; color: white; padding: 20px; text-align: center; border-radius: 5px 5px 0 0; }
-          .content { background-color: #f9fafb; padding: 20px; border: 1px solid #e5e7eb; }
+          body { margin: 0; padding: 24px; background: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, 'Helvetica Neue', sans-serif; line-height: 1.6; color: #1f2937; }
+          .container { max-width: 640px; margin: 0 auto; }
+          .card { background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04); }
+          .header { background-color: #dc2626; color: #ffffff; padding: 20px 24px; text-align: center; }
+          .brand-logo { max-height: 48px; width: auto; display: block; margin: 0 auto 8px auto; border-radius: 6px; }
+          .title { margin: 8px 0 0 0; font-size: 22px; font-weight: 700; letter-spacing: 0.2px; }
+          .content { padding: 24px; background-color: #ffffff; }
           .section { margin-bottom: 20px; }
-          .section-title { font-weight: bold; color: #dc2626; margin-bottom: 10px; font-size: 18px; }
-          .info-row { margin-bottom: 10px; }
-          .info-label { font-weight: bold; display: inline-block; width: 120px; }
-          .pedido { background-color: white; padding: 15px; border-radius: 5px; margin-top: 10px; }
-          .total { font-size: 20px; font-weight: bold; color: #dc2626; text-align: right; margin-top: 15px; }
-          .footer { text-align: center; margin-top: 20px; color: #6b7280; font-size: 12px; }
+          .section-title { font-weight: 700; color: #b91c1c; margin-bottom: 12px; font-size: 16px; text-transform: uppercase; letter-spacing: 0.4px; }
+          .info-row { display: flex; gap: 8px; margin-bottom: 10px; }
+          .info-label { min-width: 120px; font-weight: 600; color: #374151; }
+          .info-value { color: #111827; }
+          .pedido { background-color: #fafafa; padding: 16px; border-radius: 8px; border: 1px solid #e5e7eb; margin-top: 8px; }
+          .pedido pre { white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace; font-size: 14px; margin: 0; color: #111827; }
+          .total { font-size: 18px; font-weight: 800; color: #b91c1c; text-align: right; margin-top: 16px; }
+          .divider { height: 1px; background: #f3f4f6; margin: 16px 0; }
+          .footer { text-align: center; margin: 0; padding: 16px 24px 20px; color: #6b7280; font-size: 12px; background: #ffffff; }
         </style>
       </head>
       <body>
         <div class="container">
-          <div class="header">
-            <h1>🍝 Nova Encomenda Recebida</h1>
-          </div>
-          <div class="content">
-            <div class="section">
-              <div class="section-title">📋 Dados do Cliente</div>
-              <div class="info-row">
-                <span class="info-label">Nome:</span>
-                <span>${nome}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Telefone:</span>
-                <span>${telefone}</span>
-              </div>
-              <div class="info-row">
-                <span class="info-label">Endereço:</span>
-                <span>${endereco}</span>
-              </div>
-              ${observacoes ? `
-              <div class="info-row">
-                <span class="info-label">Observações:</span>
-                <span>${observacoes}</span>
-              </div>
-              ` : ''}
+          <div class="card">
+            <div class="header">
+              ${logoUrl ? `<img src="${logoUrl}" alt="Silo Sabores" class="brand-logo" />` : ''}
+              <div class="title">Nova Encomenda Recebida</div>
             </div>
+            <div class="content">
+              <div class="section">
+                <div class="section-title">Dados do Cliente</div>
+                <div class="info-row">
+                  <span class="info-label">Nome:</span>
+                  <span class="info-value">${nome}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Telefone:</span>
+                  <span class="info-value">${telefone}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Endereço:</span>
+                  <span class="info-value">${endereco}</span>
+                </div>
+                ${observacoes ? `
+                <div class="info-row">
+                  <span class="info-label">Observações:</span>
+                  <span class="info-value">${observacoes}</span>
+                </div>
+                ` : ''}
+              </div>
 
-            <div class="section">
-              <div class="section-title">🛒 Pedido</div>
-              <div class="pedido">
-                <pre style="white-space: pre-wrap; font-family: Arial, sans-serif; margin: 0;">${pedido}</pre>
-              </div>
-              <div class="total">
-                Total: ${total}
-              </div>
-            </div>
+              <div class="divider"></div>
 
-            <div class="footer">
-              <p>Este e-mail foi enviado automaticamente pelo sistema de encomendas.</p>
-              <p>Data: ${new Date().toLocaleString('pt-BR')}</p>
+              <div class="section">
+                <div class="section-title">Pedido</div>
+                <div class="pedido">
+                  <pre>${pedido}</pre>
+                </div>
+                <div class="total">
+                  Total: ${total}
+                </div>
+              </div>
             </div>
+            <p class="footer">
+              Este e-mail foi enviado automaticamente pelo sistema de encomendas.<br/>
+              Data: ${new Date().toLocaleString('pt-BR')}
+            </p>
           </div>
         </div>
       </body>
