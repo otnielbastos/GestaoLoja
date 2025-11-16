@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
@@ -80,12 +80,9 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product }: Product
         setIsUploading(true);
         const formDataUpload = new FormData();
         formDataUpload.append('imagem', selectedImage);
-
-        console.log('Iniciando upload de imagem');
         
         try {
           const response = await api.produtos.uploadImagem(selectedImage);
-          console.log('Resposta do upload:', response);
           finalImageUrl = response.data.imageUrl;
         } catch (error: any) {
           console.error('Erro detalhado do upload:', {
@@ -96,11 +93,6 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product }: Product
           throw new Error(error.response?.data?.error || 'Erro ao fazer upload da imagem');
         }
       }
-
-      console.log('Salvando produto com dados:', {
-        ...formData,
-        imagem_url: finalImageUrl
-      });
 
       // Submete o formulário com a URL da imagem atualizada
       await onSubmit({
@@ -141,6 +133,9 @@ export function ProductFormModal({ isOpen, onClose, onSubmit, product }: Product
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] flex flex-col p-0">
         <DialogHeader className="p-6 pb-2">
           <DialogTitle>{product ? 'Editar Produto' : 'Novo Produto'}</DialogTitle>
+          <DialogDescription>
+            {product ? 'Edite as informações do produto abaixo.' : 'Preencha as informações para criar um novo produto.'}
+          </DialogDescription>
         </DialogHeader>
         
         <div className="flex-1 overflow-y-auto px-6">

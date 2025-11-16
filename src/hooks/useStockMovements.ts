@@ -30,14 +30,10 @@ export function useStockMovements() {
       setLoading(true);
       setError(null);
       
-      console.log('🔄 Carregando movimentações do estoque...');
       const response = await api.estoque.listarMovimentacoes();
-      
-      console.log('✅ Resposta da API:', response);
       
       if (response && response.success) {
         setMovements(response.data || []);
-        console.log(`📦 ${response.data?.length || 0} movimentações carregadas`);
       } else {
         console.error('❌ Resposta da API sem sucesso:', response);
         throw new Error('Erro ao carregar movimentações - resposta inválida');
@@ -127,11 +123,9 @@ export function useStockMovements() {
   // Buscar produtos com estoque baixo
   const getLowStockProducts = async () => {
     try {
-      console.log('🔄 Buscando produtos com estoque baixo...');
       const response = await api.estoque.buscarEstoqueBaixo();
       
       if (response && response.success) {
-        console.log(`📦 ${response.data?.length || 0} produtos com estoque baixo encontrados`);
         return response.data || [];
       } else {
         console.warn('⚠️ Falha ao buscar produtos com estoque baixo:', response);
@@ -146,11 +140,9 @@ export function useStockMovements() {
   // Buscar relatório de estoque
   const getStockReport = async () => {
     try {
-      console.log('🔄 Buscando relatório de estoque...');
       const response = await api.estoque.relatorioEstoque();
       
       if (response && response.success) {
-        console.log('✅ Relatório de estoque carregado:', response.data);
         return response.data || null;
       } else {
         console.warn('⚠️ Falha ao buscar relatório de estoque:', response);

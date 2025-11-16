@@ -113,8 +113,6 @@ export const estoqueService = {
           const validade = new Date(fabricacao);
           validade.setMonth(validade.getMonth() + 3);
           dataValidadeFinal = validade.toISOString().split('T')[0];
-          
-          console.log(`Validade automática calculada para nhoque: ${dataValidadeFinal}`);
         }
       }
 
@@ -274,8 +272,6 @@ export const estoqueService = {
           const validade = new Date(fabricacao);
           validade.setMonth(validade.getMonth() + 3);
           dataValidadeFinal = validade.toISOString().split('T')[0];
-          
-          console.log(`Validade automática atualizada para nhoque: ${dataValidadeFinal}`);
         }
       }
 

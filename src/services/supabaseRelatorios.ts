@@ -272,10 +272,7 @@ export const relatoriosService = {
         throw error;
       }
       
-      console.log('Dados recebidos do Supabase:', itensPedidos);
-      
       if (!itensPedidos || itensPedidos.length === 0) {
-        console.log('Nenhum item de pedido encontrado');
         return [
           { name: "Pão Francês", sold: 156, revenue: "R$ 109,20" },
           { name: "Refrigerante 2L", sold: 45, revenue: "R$ 400,50" },
@@ -285,7 +282,6 @@ export const relatoriosService = {
       }
       
       // Se conseguiu buscar os dados, precisa fazer joins manuais
-      console.log('Fazendo busca de produtos...');
       const { data: produtos, error: produtosError } = await supabase
         .from('produtos')
         .select('id, nome');
@@ -294,8 +290,6 @@ export const relatoriosService = {
         console.error('Erro ao buscar produtos:', produtosError);
         throw produtosError;
       }
-      
-      console.log('Produtos encontrados:', produtos);
       
       // Agrupar por produto_id
       const produtosMap = new Map();
@@ -403,8 +397,6 @@ export const relatoriosService = {
   // Buscar pedidos por bairro
   async obterPedidosPorBairro(): Promise<PedidoPorBairro[]> {
     try {
-      console.log('🏘️ Buscando pedidos por bairro...');
-      
       // Buscar pedidos dos últimos 30 dias com endereço de entrega
       const ultimosMesDias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       
@@ -433,12 +425,7 @@ export const relatoriosService = {
         ];
       }
       
-      console.log('📦 Total de pedidos encontrados:', count);
-      console.log('📦 Pedidos com bairro (primeiros 5):', pedidos?.slice(0, 5));
-      console.log('📦 Estrutura do primeiro pedido:', pedidos?.[0]);
-      
       if (!pedidos || pedidos.length === 0) {
-        console.log('⚠️ Nenhum pedido encontrado com bairro, usando dados de exemplo');
         return [
           { name: "Centro", orders: 85, percentage: 40 },
           { name: "Jardim", orders: 52, percentage: 25 },
@@ -456,9 +443,6 @@ export const relatoriosService = {
         contadores.set(bairro, (contadores.get(bairro) || 0) + 1);
       });
       
-      console.log('📊 Contadores por bairro:', Array.from(contadores.entries()));
-      console.log('🏘️ Bairros únicos encontrados:', [...contadores.keys()]);
-      
       // Converter para array com percentuais
       const pedidosPorBairro: PedidoPorBairro[] = Array.from(contadores.entries())
         .map(([bairro, count]) => ({
@@ -469,11 +453,8 @@ export const relatoriosService = {
         .sort((a, b) => b.orders - a.orders)
         .slice(0, 4); // Top 4 bairros
       
-      console.log('🏆 Top 4 bairros calculados:', pedidosPorBairro);
-      
       // Se não houver dados suficientes, retornar dados de exemplo
       if (pedidosPorBairro.length === 0) {
-        console.log('⚠️ Nenhum bairro após processamento, usando dados de exemplo');
         return [
           { name: "Centro", orders: 85, percentage: 40 },
           { name: "Jardim", orders: 52, percentage: 25 },

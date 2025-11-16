@@ -99,15 +99,6 @@ export const authService = {
       const { email, senha, password } = data;
       const senhaInput = senha || password;
       
-      console.log('🔑 Tentativa de login:', { 
-        email, 
-        hasPassword: !!senhaInput,
-        passwordLength: senhaInput?.length,
-        userAgent: getUserAgent(),
-        timestamp: new Date().toISOString(),
-        supabaseUrl: import.meta.env.VITE_SUPABASE_URL
-      });
-      
       if (!senhaInput || senhaInput.length < 6) {
         throw new Error('Senha deve ter pelo menos 6 caracteres');
       }
@@ -125,12 +116,6 @@ export const authService = {
         .eq('email', email.toLowerCase())
         .single();
 
-      console.log('👤 Resultado busca usuário:', { 
-        found: !!usuarios, 
-        error: userError?.message,
-        userId: usuarios?.id 
-      });
-
       if (userError || !usuarios) {
         await registrarTentativaLogin(email, ip, false, 'Usuário não encontrado', userAgent);
         throw new Error('Email ou senha incorretos');
@@ -138,14 +123,12 @@ export const authService = {
 
       // Verificar se o usuário está ativo
       if (!usuarios.ativo || usuarios.status !== 'ativo') {
-        console.log('❌ Usuário não ativo:', { ativo: usuarios.ativo, status: usuarios.status });
         await registrarTentativaLogin(email, ip, false, 'Usuário desativado', userAgent);
         throw new Error('Usuário desativado');
       }
 
       // Verificar se o usuário não está bloqueado
       if (usuarios.bloqueado_ate && new Date() < new Date(usuarios.bloqueado_ate)) {
-        console.log('🚫 Usuário bloqueado até:', usuarios.bloqueado_ate);
         await registrarTentativaLogin(email, ip, false, 'Usuário bloqueado', userAgent);
         throw new Error('Usuário temporariamente bloqueado');
       }
@@ -156,14 +139,7 @@ export const authService = {
         throw new Error('Erro de configuração do usuário');
       }
       
-      console.log('🔐 Verificando senha...', { 
-        hasPasswordHash: !!usuarios.senha_hash,
-        inputPasswordLength: senhaInput.length 
-      });
-      
       const senhaValida = await verifyPassword(senhaInput, usuarios.senha_hash);
-      
-      console.log('✅ Resultado verificação senha:', { senhaValida });
       
       if (!senhaValida) {
         // Incrementar tentativas de login
@@ -229,8 +205,6 @@ export const authService = {
         perfil_id: usuarios.perfil_id,
         permissoes: usuarios.perfil.permissoes
       }));
-
-      console.log('🎉 Login realizado com sucesso!', { userId: usuarios.id });
 
       return {
         success: true,

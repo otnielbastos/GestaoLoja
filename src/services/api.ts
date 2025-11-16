@@ -15,7 +15,6 @@ const checkAuth = () => {
         window.location.href = '/login';
         throw new Error('Não autenticado');
     }
-    console.log('✅ Usuário autenticado');
 };
 
 // API compatível com o código existente - TODAS AS REGRAS DE NEGÓCIO IMPLEMENTADAS
@@ -102,7 +101,6 @@ export const getImageUrl = (path: string) => {
     }
     
     if (path.startsWith('http')) {
-        console.log('getImageUrl: URL absoluta detectada:', path);
         return path;
     }
     
@@ -125,12 +123,6 @@ export const getImageUrl = (path: string) => {
         // Apenas nome do arquivo, assumir pasta produtos
         finalUrl = `${baseUrl}/storage/v1/object/public/uploads/produtos/${path}`;
     }
-    
-    console.log('🖼️ getImageUrl:', { 
-        path,
-        supabaseUrl,
-        finalUrl
-    });
     
     return finalUrl;
 };

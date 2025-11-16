@@ -224,10 +224,7 @@ export function Products() {
                         });
                       }}
                       onLoad={() => {
-                        console.log('✅ Imagem carregada com sucesso:', {
-                          produto: product.nome,
-                          src: getImageUrl(product.imagem_url)
-                        });
+                        // Imagem carregada com sucesso
                       }}
                     />
                   ) : (

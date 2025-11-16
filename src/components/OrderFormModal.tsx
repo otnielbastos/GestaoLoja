@@ -235,6 +235,9 @@ export function OrderFormModal({ isOpen, onClose, onSubmit, order }: OrderFormMo
           <DialogTitle>
             {order ? 'Editar Pedido' : 'Novo Pedido'}
           </DialogTitle>
+          <DialogDescription>
+            {order ? 'Edite as informações do pedido abaixo.' : 'Preencha as informações para criar um novo pedido.'}
+          </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-6">

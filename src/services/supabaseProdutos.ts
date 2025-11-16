@@ -95,8 +95,6 @@ export const produtosService = {
         imagem_url 
       } = data;
 
-      console.log('Criando produto com dados:', data);
-
       // REGRA DE NEGÓCIO: Validações obrigatórias
       if (!nome || nome.trim() === '') {
         throw new Error('Nome do produto é obrigatório');
@@ -115,14 +113,14 @@ export const produtosService = {
       }
 
       // REGRA DE NEGÓCIO: Verificar se já existe produto com o mesmo nome
-      const { data: produtoExistente } = await supabase
+      const { data: produtosExistentes } = await supabase
         .from('produtos')
         .select('id')
         .eq('nome', nome.trim())
         .eq('status', 'ativo')
-        .single();
+        .limit(1);
 
-      if (produtoExistente) {
+      if (produtosExistentes && produtosExistentes.length > 0) {
         throw new Error('Já existe um produto ativo com este nome');
       }
 
@@ -146,8 +144,6 @@ export const produtosService = {
       if (error) {
         throw new Error('Erro ao criar produto');
       }
-
-      console.log('Produto criado com ID:', produto.id);
 
       // REGRA DE NEGÓCIO: Criar registro inicial no estoque
       await supabase
@@ -200,15 +196,15 @@ export const produtosService = {
 
       // REGRA DE NEGÓCIO: Validações se nome foi alterado
       if (nome && nome.trim() !== '' && nome.trim() !== produtoExistente.nome) {
-        const { data: nomeExistente } = await supabase
+        const { data: produtosComNome } = await supabase
           .from('produtos')
           .select('id')
           .eq('nome', nome.trim())
           .neq('id', id)
           .eq('status', 'ativo')
-          .single();
+          .limit(1);
 
-        if (nomeExistente) {
+        if (produtosComNome && produtosComNome.length > 0) {
           throw new Error('Já existe um produto ativo com este nome');
         }
       }
@@ -331,8 +327,6 @@ export const produtosService = {
   // REGRA DE NEGÓCIO: Listar produtos para venda (produção própria e revenda)
   async listarParaVenda() {
     try {
-      console.log('Buscando produtos para venda...');
-      
       const { data: produtos, error } = await supabase
         .from('produtos')
         .select(`
@@ -356,8 +350,6 @@ export const produtosService = {
       if (error) {
         throw new Error('Erro ao buscar produtos para venda');
       }
-
-      console.log(`Encontrados ${produtos.length} produtos para venda`);
       
       // REGRA DE NEGÓCIO: Converter valores numéricos e garantir que não sejam null/undefined
       const produtosFormatados = produtos.map(produto => ({
@@ -376,8 +368,6 @@ export const produtosService = {
         imagem_url: produto.imagem_url || null,
         status: produto.status || 'ativo'
       }));
-      
-      console.log('Produtos formatados:', produtosFormatados);
       
       return {
         success: true,
@@ -424,12 +414,6 @@ export const produtosService = {
 
       // Construir URL da imagem
       const imageUrl = `/uploads/produtos/${fileName}`;
-      
-      console.log('Upload realizado com sucesso:', {
-        originalname: file.name,
-        filename: fileName,
-        url: imageUrl
-      });
 
       return {
         success: true,

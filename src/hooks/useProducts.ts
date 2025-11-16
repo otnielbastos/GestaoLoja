@@ -27,10 +27,8 @@ export const useProducts = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('Buscando todos os produtos...');
       
       const response = await api.produtos.listar();
-      console.log('Produtos recebidos:', response.data);
       
       if (response.success) {
         // Garantir que os produtos têm os campos corretos
@@ -58,10 +56,8 @@ export const useProducts = () => {
     try {
       setLoading(true);
       setError(null);
-      console.log('Buscando produtos para venda...');
       
       const response = await api.produtos.listarParaVenda();
-      console.log('Produtos para venda recebidos:', response.data);
       
       if (response.success) {
         // Garantir que os produtos têm os campos corretos

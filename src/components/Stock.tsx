@@ -22,20 +22,15 @@ export function Stock() {
   const { movements, loading, error, addMovement, updateMovement, deleteMovement, getMovement, getLowStockProducts, getStockReport } = useStockMovements();
   const { toast } = useToast();
 
-  console.log('🔄 Stock component rendered - Loading:', loading, 'Error:', error, 'Movements:', movements?.length);
-
   // Carregar dados adicionais
   useEffect(() => {
-    console.log('🔄 Carregando dados auxiliares do estoque...');
     loadLowStockProducts();
     loadStockReport();
   }, []);
 
   const loadLowStockProducts = async () => {
     try {
-      console.log('🔄 Iniciando carregamento de produtos com estoque baixo...');
       const products = await getLowStockProducts();
-      console.log('✅ Produtos com estoque baixo carregados:', products);
       setLowStockProducts(products || []);
     } catch (error) {
       console.error('❌ Erro ao carregar produtos com estoque baixo:', error);
@@ -45,9 +40,7 @@ export function Stock() {
 
   const loadStockReport = async () => {
     try {
-      console.log('🔄 Iniciando carregamento do relatório de estoque...');
       const report = await getStockReport();
-      console.log('✅ Relatório de estoque carregado:', report);
       setStockReport(report);
     } catch (error) {
       console.error('❌ Erro ao carregar relatório de estoque:', error);

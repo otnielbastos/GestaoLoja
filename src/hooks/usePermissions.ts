@@ -10,10 +10,7 @@ export const usePermissions = () => {
 
   useEffect(() => {
     const loadUserPermissions = () => {
-      console.log('🔐 Carregando permissões para:', user?.nome, `(${user?.perfil})`);
-
       if (!user) {
-        console.log('❌ Usuário não encontrado');
         setUserPermissions(null);
         setLoading(false);
         return;
@@ -21,9 +18,6 @@ export const usePermissions = () => {
 
       // Usar as permissões reais do usuário vindas do banco
       if (user.permissoes && typeof user.permissoes === 'object') {
-        console.log('✅ Usando permissões reais do banco de dados');
-        console.log('📋 Permissões do usuário:', JSON.stringify(user.permissoes, null, 2));
-        
         // Converter as permissões do formato do banco para o formato esperado
         const realPermissions: PermissionSet = {
           pages: (user.permissoes.pages || []) as PagePermission[],
@@ -37,7 +31,7 @@ export const usePermissions = () => {
 
       // Fallback para administradores (caso as permissões não venham do banco)
       if (user.perfil === 'Administrador' || user.perfil === 'administrador' || user.perfil === 'admin') {
-        console.log('⚠️ FALLBACK: Administrador sem permissões do banco - usando fallback');
+        console.warn('⚠️ Administrador sem permissões do banco - usando fallback');
         const adminPermissions: PermissionSet = {
           pages: ['dashboard', 'produtos', 'pedidos', 'clientes', 'estoque', 'entregas', 'relatorios', 'usuarios', 'configuracoes'],
           actions: {
@@ -59,7 +53,6 @@ export const usePermissions = () => {
       }
 
       // Para outros perfis, acesso limitado
-      console.log('⚠️ Perfil limitado - acesso restrito aplicado');
       const limitedPermissions: PermissionSet = {
         pages: ['dashboard'],
         actions: {
@@ -78,47 +71,40 @@ export const usePermissions = () => {
   const hasPageAccess = (page: PagePermission): boolean => {
     // Se ainda está carregando, negar acesso
     if (loading) {
-      console.log('⏳ Ainda carregando permissões, negando acesso temporariamente');
       return false;
     }
     
     // Se não tem permissões, negar acesso
     if (!userPermissions) {
-      console.log('❌ Sem permissões definidas, negando acesso');
+      console.error('❌ Sem permissões definidas, negando acesso');
       return false;
     }
     
     // Verificar se a página está na lista de páginas permitidas
     const hasAccess = userPermissions.pages?.includes(page) || false;
-    console.log(`🔍 Verificando acesso à página "${page}":`, hasAccess ? '✅ PERMITIDO' : '❌ NEGADO');
-    console.log(`📋 Páginas disponíveis:`, userPermissions.pages);
     return hasAccess;
   };
 
   const hasActionAccess = (page: PagePermission, action: ActionPermission): boolean => {
     // Se ainda está carregando, negar acesso
     if (loading) {
-      console.log('⏳ Ainda carregando permissões, negando ação temporariamente');
       return false;
     }
     
     // Se não tem permissões, negar acesso
     if (!userPermissions) {
-      console.log('❌ Sem permissões definidas, negando ação');
+      console.error('❌ Sem permissões definidas, negando ação');
       return false;
     }
     
     // Primeiro verificar se tem acesso à página
     if (!hasPageAccess(page)) {
-      console.log(`❌ Sem acesso à página "${page}", negando ação "${action}"`);
       return false;
     }
     
     // Verificar se tem a ação específica
     const pageActions = userPermissions.actions?.[page] || [];
     const hasAccess = pageActions.includes(action);
-    console.log(`🔍 Verificando ação "${action}" na página "${page}":`, hasAccess ? '✅ PERMITIDO' : '❌ NEGADO');
-    console.log(`📋 Ações disponíveis para "${page}":`, pageActions);
     return hasAccess;
   };
 
