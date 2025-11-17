@@ -92,6 +92,65 @@ const obterDiasSemana = (): string[] => {
   return dias;
 };
 
+// Função auxiliar para buscar bairros da tabela entregas
+const buscarBairrosDeEntregas = async (
+  dataInicio: Date,
+  isVendedor: boolean,
+  userId?: number
+): Promise<PedidoPorBairro[]> => {
+  try {
+    let queryEntregas = supabase
+      .from('entregas')
+      .select(`
+        endereco_entrega_bairro,
+        pedido:pedidos!inner(data_pedido, status, criado_por)
+      `)
+      .gte('pedido.data_pedido', dataInicio.toISOString())
+      .not('endereco_entrega_bairro', 'is', null)
+      .neq('endereco_entrega_bairro', '');
+    
+    // REGRA DE NEGÓCIO: Vendedor só vê seus dados
+    if (isVendedor && userId) {
+      queryEntregas = queryEntregas.eq('pedido.criado_por', userId);
+    }
+    
+    const { data: entregas, error: errorEntregas } = await queryEntregas;
+    
+    if (errorEntregas) {
+      console.error('❌ Erro ao buscar entregas:', errorEntregas);
+      return []; // Retornar array vazio em caso de erro
+    }
+    
+    if (!entregas || entregas.length === 0) {
+      return []; // Retornar array vazio se não houver dados
+    }
+    
+    // Processar dados de entregas
+    const contadores = new Map<string, number>();
+    entregas.forEach((entrega: any) => {
+      const bairro = entrega.endereco_entrega_bairro?.trim();
+      if (bairro && bairro !== '') {
+        contadores.set(bairro, (contadores.get(bairro) || 0) + 1);
+      }
+    });
+    
+    const total = entregas.length;
+    const pedidosPorBairro: PedidoPorBairro[] = Array.from(contadores.entries())
+      .map(([bairro, count]) => ({
+        name: bairro,
+        orders: count,
+        percentage: total > 0 ? Math.round((count / total) * 100) : 0
+      }))
+      .sort((a, b) => b.orders - a.orders)
+      .slice(0, 4);
+    
+    return pedidosPorBairro;
+  } catch (error) {
+    console.error('❌ Erro ao buscar bairros de entregas:', error);
+    return [];
+  }
+};
+
 export const relatoriosService = {
   // Buscar dados do dashboard principal
   async obterDashboard(periodo: string = '7d'): Promise<RelatorioDashboard> {
@@ -397,83 +456,75 @@ export const relatoriosService = {
   // Buscar pedidos por bairro
   async obterPedidosPorBairro(): Promise<PedidoPorBairro[]> {
     try {
+      // Obter usuário atual
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+      
       // Buscar pedidos dos últimos 30 dias com endereço de entrega
       const ultimosMesDias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       
-      const { data: pedidos, error, count } = await supabase
+      // Primeiro, tentar buscar da tabela pedidos (se o campo existir)
+      let query = supabase
         .from('pedidos')
-        .select('endereco_entrega_bairro, data_pedido, status, numero_pedido', { count: 'exact' })
-        .gte('data_pedido', ultimosMesDias.toISOString())
-        .not('endereco_entrega_bairro', 'is', null)
-        .neq('endereco_entrega_bairro', '');
+        .select('endereco_entrega_bairro, data_pedido, status, numero_pedido, criado_por')
+        .gte('data_pedido', ultimosMesDias.toISOString());
+      
+      // REGRA DE NEGÓCIO: Vendedor só vê seus dados
+      if (isVendedor && user?.id) {
+        query = query.eq('criado_por', user.id);
+      }
+      
+      const { data: pedidos, error } = await query;
       
       if (error) {
         console.error('❌ Erro ao buscar pedidos:', error);
-        console.error('❌ Detalhes do erro:', {
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-          code: error.code
-        });
-        
-        // Em caso de erro, retornar dados de exemplo
-        return [
-          { name: "Centro", orders: 85, percentage: 40 },
-          { name: "Jardim", orders: 52, percentage: 25 },
-          { name: "Vila Nova", orders: 38, percentage: 18 },
-          { name: "Outros", orders: 35, percentage: 17 },
-        ];
+        // Se o campo não existir na tabela pedidos, tentar buscar da tabela entregas
+        console.log('Tentando buscar da tabela entregas...');
+        return await buscarBairrosDeEntregas(ultimosMesDias, isVendedor, user?.id);
       }
       
       if (!pedidos || pedidos.length === 0) {
-        return [
-          { name: "Centro", orders: 85, percentage: 40 },
-          { name: "Jardim", orders: 52, percentage: 25 },
-          { name: "Vila Nova", orders: 38, percentage: 18 },
-          { name: "Outros", orders: 35, percentage: 17 },
-        ];
+        // Se não houver pedidos, tentar buscar da tabela entregas
+        return await buscarBairrosDeEntregas(ultimosMesDias, isVendedor, user?.id);
+      }
+      
+      // Filtrar pedidos com bairro válido
+      const pedidosComBairro = pedidos.filter(p => 
+        p.endereco_entrega_bairro && 
+        p.endereco_entrega_bairro.trim() !== ''
+      );
+      
+      if (pedidosComBairro.length === 0) {
+        // Se não houver pedidos com bairro, tentar buscar da tabela entregas
+        return await buscarBairrosDeEntregas(ultimosMesDias, isVendedor, user?.id);
       }
       
       // Contar pedidos por bairro
-      const contadores = new Map();
-      const total = pedidos.length;
-      
-      pedidos.forEach(pedido => {
+      const contadores = new Map<string, number>();
+      pedidosComBairro.forEach(pedido => {
         const bairro = pedido.endereco_entrega_bairro?.trim() || 'Não informado';
-        contadores.set(bairro, (contadores.get(bairro) || 0) + 1);
+        if (bairro !== 'Não informado') {
+          contadores.set(bairro, (contadores.get(bairro) || 0) + 1);
+        }
       });
+      
+      const total = pedidosComBairro.length;
       
       // Converter para array com percentuais
       const pedidosPorBairro: PedidoPorBairro[] = Array.from(contadores.entries())
         .map(([bairro, count]) => ({
           name: bairro,
-          orders: count as number,
-          percentage: total > 0 ? Math.round((count as number / total) * 100) : 0
+          orders: count,
+          percentage: total > 0 ? Math.round((count / total) * 100) : 0
         }))
         .sort((a, b) => b.orders - a.orders)
         .slice(0, 4); // Top 4 bairros
-      
-      // Se não houver dados suficientes, retornar dados de exemplo
-      if (pedidosPorBairro.length === 0) {
-        return [
-          { name: "Centro", orders: 85, percentage: 40 },
-          { name: "Jardim", orders: 52, percentage: 25 },
-          { name: "Vila Nova", orders: 38, percentage: 18 },
-          { name: "Outros", orders: 35, percentage: 17 },
-        ];
-      }
       
       return pedidosPorBairro;
       
     } catch (error) {
       console.error('❌ Erro ao obter pedidos por bairro:', error);
-      // Em caso de erro, retornar dados de exemplo
-      return [
-        { name: "Centro", orders: 85, percentage: 40 },
-        { name: "Jardim", orders: 52, percentage: 25 },
-        { name: "Vila Nova", orders: 38, percentage: 18 },
-        { name: "Outros", orders: 35, percentage: 17 },
-      ];
+      return []; // Retornar array vazio em caso de erro
     }
   },
 
