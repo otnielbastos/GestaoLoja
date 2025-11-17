@@ -7,7 +7,7 @@ export default function Footer() {
           <div>
             <div className="flex items-center gap-3 mb-4">
               <img 
-                src="https://static.readdy.ai/image/23c1b32f4c83ebfdc78e33fca9630083/514cab0691b1b648f73421df5e7f91a2.png" 
+                src="/images/website/readdy-logo.png" 
                 alt="Silo Sabores Gourmet" 
                 className="h-16 w-auto filter brightness-0 invert"
               />

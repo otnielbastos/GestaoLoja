@@ -1,14 +1,31 @@
-User-agent: Googlebot
-Allow: /
+# Robots.txt para Silo Sabores Gourmet
+# Site: https://silosaboresgourmet.com.br
 
-User-agent: Bingbot
-Allow: /
-
-User-agent: Twitterbot
-Allow: /
-
-User-agent: facebookexternalhit
-Allow: /
-
+# Permitir todos os crawlers no site público
 User-agent: *
 Allow: /
+Allow: /#beneficios
+Allow: /#cardapio
+Allow: /#pedido
+
+# Bloquear áreas administrativas e privadas
+Disallow: /admin/
+Disallow: /admin/login
+Disallow: /admin/dashboard/
+
+# Bloquear arquivos e diretórios técnicos
+Disallow: /api/
+Disallow: /_next/
+Disallow: /.next/
+Disallow: /node_modules/
+
+# Permitir acesso a recursos estáticos
+Allow: /images/
+Allow: /assets/
+Allow: /favicon.ico
+
+# Sitemap
+Sitemap: https://silosaboresgourmet.com.br/sitemap.xml
+
+# Crawl-delay (opcional - ajuste conforme necessário)
+# Crawl-delay: 1

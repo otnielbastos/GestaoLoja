@@ -15,7 +15,7 @@ export default function Header() {
         <div className="flex justify-between items-center py-4">
           <div className="flex items-center gap-2 sm:gap-3">
             <img 
-              src="https://static.readdy.ai/image/23c1b32f4c83ebfdc78e33fca9630083/514cab0691b1b648f73421df5e7f91a2.png" 
+              src="/images/website/readdy-logo.png" 
               alt="Silo Sabores Gourmet" 
               className="h-10 sm:h-12 md:h-16 w-auto"
             />
