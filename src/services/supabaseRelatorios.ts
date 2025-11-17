@@ -99,20 +99,17 @@ const buscarBairrosDeEntregas = async (
   userId?: number
 ): Promise<PedidoPorBairro[]> => {
   try {
+    // Primeiro, buscar todas as entregas com bairro válido
     let queryEntregas = supabase
       .from('entregas')
       .select(`
+        id,
+        pedido_id,
         endereco_entrega_bairro,
-        pedido:pedidos!inner(data_pedido, status, criado_por)
+        pedido:pedidos!inner(id, data_pedido, status, criado_por)
       `)
-      .gte('pedido.data_pedido', dataInicio.toISOString())
       .not('endereco_entrega_bairro', 'is', null)
       .neq('endereco_entrega_bairro', '');
-    
-    // REGRA DE NEGÓCIO: Vendedor só vê seus dados
-    if (isVendedor && userId) {
-      queryEntregas = queryEntregas.eq('pedido.criado_por', userId);
-    }
     
     const { data: entregas, error: errorEntregas } = await queryEntregas;
     
@@ -122,19 +119,42 @@ const buscarBairrosDeEntregas = async (
     }
     
     if (!entregas || entregas.length === 0) {
+      console.log('Nenhuma entrega encontrada na tabela entregas');
       return []; // Retornar array vazio se não houver dados
+    }
+    
+    // Filtrar entregas por data e vendedor
+    const entregasFiltradas = entregas.filter((entrega: any) => {
+      const pedido = entrega.pedido;
+      if (!pedido) return false;
+      
+      // Filtrar por data
+      const dataPedido = new Date(pedido.data_pedido);
+      if (dataPedido < dataInicio) return false;
+      
+      // Filtrar por vendedor se necessário
+      if (isVendedor && userId && pedido.criado_por !== userId) {
+        return false;
+      }
+      
+      return true;
+    });
+    
+    if (entregasFiltradas.length === 0) {
+      console.log('Nenhuma entrega encontrada após filtros (data/vendedor)');
+      return [];
     }
     
     // Processar dados de entregas
     const contadores = new Map<string, number>();
-    entregas.forEach((entrega: any) => {
+    entregasFiltradas.forEach((entrega: any) => {
       const bairro = entrega.endereco_entrega_bairro?.trim();
       if (bairro && bairro !== '') {
         contadores.set(bairro, (contadores.get(bairro) || 0) + 1);
       }
     });
     
-    const total = entregas.length;
+    const total = entregasFiltradas.length;
     const pedidosPorBairro: PedidoPorBairro[] = Array.from(contadores.entries())
       .map(([bairro, count]) => ({
         name: bairro,
@@ -144,6 +164,7 @@ const buscarBairrosDeEntregas = async (
       .sort((a, b) => b.orders - a.orders)
       .slice(0, 4);
     
+    console.log(`✅ Encontrados ${pedidosPorBairro.length} bairros na tabela entregas`);
     return pedidosPorBairro;
   } catch (error) {
     console.error('❌ Erro ao buscar bairros de entregas:', error);
@@ -463,52 +484,92 @@ export const relatoriosService = {
       // Buscar pedidos dos últimos 30 dias com endereço de entrega
       const ultimosMesDias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
       
-      // Primeiro, tentar buscar da tabela pedidos (se o campo existir)
-      let query = supabase
-        .from('pedidos')
-        .select('endereco_entrega_bairro, data_pedido, status, numero_pedido, criado_por')
-        .gte('data_pedido', ultimosMesDias.toISOString());
-      
-      // REGRA DE NEGÓCIO: Vendedor só vê seus dados
-      if (isVendedor && user?.id) {
-        query = query.eq('criado_por', user.id);
-      }
-      
-      const { data: pedidos, error } = await query;
-      
-      if (error) {
-        console.error('❌ Erro ao buscar pedidos:', error);
-        // Se o campo não existir na tabela pedidos, tentar buscar da tabela entregas
-        console.log('Tentando buscar da tabela entregas...');
-        return await buscarBairrosDeEntregas(ultimosMesDias, isVendedor, user?.id);
-      }
-      
-      if (!pedidos || pedidos.length === 0) {
-        // Se não houver pedidos, tentar buscar da tabela entregas
-        return await buscarBairrosDeEntregas(ultimosMesDias, isVendedor, user?.id);
-      }
-      
-      // Filtrar pedidos com bairro válido
-      const pedidosComBairro = pedidos.filter(p => 
-        p.endereco_entrega_bairro && 
-        p.endereco_entrega_bairro.trim() !== ''
-      );
-      
-      if (pedidosComBairro.length === 0) {
-        // Se não houver pedidos com bairro, tentar buscar da tabela entregas
-        return await buscarBairrosDeEntregas(ultimosMesDias, isVendedor, user?.id);
-      }
-      
-      // Contar pedidos por bairro
       const contadores = new Map<string, number>();
-      pedidosComBairro.forEach(pedido => {
-        const bairro = pedido.endereco_entrega_bairro?.trim() || 'Não informado';
-        if (bairro !== 'Não informado') {
-          contadores.set(bairro, (contadores.get(bairro) || 0) + 1);
-        }
-      });
       
-      const total = pedidosComBairro.length;
+      // 1. Tentar buscar da tabela entregas (fonte mais confiável)
+      try {
+        const bairrosDeEntregas = await buscarBairrosDeEntregas(ultimosMesDias, isVendedor, user?.id);
+        bairrosDeEntregas.forEach(item => {
+          contadores.set(item.name, (contadores.get(item.name) || 0) + item.orders);
+        });
+      } catch (error) {
+        console.log('Não foi possível buscar da tabela entregas:', error);
+      }
+      
+      // 2. Tentar buscar da tabela pedidos (se o campo existir)
+      try {
+        let query = supabase
+          .from('pedidos')
+          .select('endereco_entrega_bairro, data_pedido, status, numero_pedido, criado_por')
+          .gte('data_pedido', ultimosMesDias.toISOString());
+        
+        // REGRA DE NEGÓCIO: Vendedor só vê seus dados
+        if (isVendedor && user?.id) {
+          query = query.eq('criado_por', user.id);
+        }
+        
+        const { data: pedidos, error: errorPedidos } = await query;
+        
+        if (!errorPedidos && pedidos && pedidos.length > 0) {
+          // Filtrar pedidos com bairro válido
+          const pedidosComBairro = pedidos.filter(p => 
+            p.endereco_entrega_bairro && 
+            p.endereco_entrega_bairro.trim() !== ''
+          );
+          
+          pedidosComBairro.forEach(pedido => {
+            const bairro = pedido.endereco_entrega_bairro?.trim();
+            if (bairro && bairro !== '') {
+              contadores.set(bairro, (contadores.get(bairro) || 0) + 1);
+            }
+          });
+        }
+      } catch (error) {
+        console.log('Não foi possível buscar da tabela pedidos:', error);
+      }
+      
+      // 3. Se ainda não encontrou dados, buscar bairro do cliente
+      if (contadores.size === 0) {
+        try {
+          let queryPedidos = supabase
+            .from('pedidos')
+            .select(`
+              id,
+              data_pedido,
+              criado_por,
+              cliente:clientes!inner(endereco_bairro)
+            `)
+            .gte('data_pedido', ultimosMesDias.toISOString());
+          
+          // REGRA DE NEGÓCIO: Vendedor só vê seus dados
+          if (isVendedor && user?.id) {
+            queryPedidos = queryPedidos.eq('criado_por', user.id);
+          }
+          
+          const { data: pedidosComCliente, error: errorPedidosCliente } = await queryPedidos;
+          
+          if (!errorPedidosCliente && pedidosComCliente && pedidosComCliente.length > 0) {
+            pedidosComCliente.forEach((pedido: any) => {
+              const cliente = pedido.cliente;
+              if (cliente && cliente.endereco_bairro && cliente.endereco_bairro.trim() !== '') {
+                const bairro = cliente.endereco_bairro.trim();
+                contadores.set(bairro, (contadores.get(bairro) || 0) + 1);
+              }
+            });
+            console.log(`✅ Encontrados ${contadores.size} bairros na tabela clientes`);
+          }
+        } catch (error) {
+          console.log('Não foi possível buscar bairro dos clientes:', error);
+        }
+      }
+      
+      // Se não encontrou nenhum bairro, retornar vazio
+      if (contadores.size === 0) {
+        return [];
+      }
+      
+      // Calcular total e percentuais
+      const total = Array.from(contadores.values()).reduce((sum, count) => sum + count, 0);
       
       // Converter para array com percentuais
       const pedidosPorBairro: PedidoPorBairro[] = Array.from(contadores.entries())
