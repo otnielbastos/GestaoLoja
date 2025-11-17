@@ -57,6 +57,19 @@ interface TopComprador {
   quantidade_pedidos: number;
 }
 
+interface RelatorioFinanceiro {
+  valor_total_pedidos: number;
+  valor_pago: number;
+  valor_pendente: number;
+  quantidade_pedidos: number;
+  quantidade_entregue: number;
+  quantidade_pendente: number;
+  quantidade_cancelado?: number;
+  ticket_medio?: number;
+  percentual_pago?: number;
+  percentual_pendente?: number;
+}
+
 // Helper para calcular período anterior
 const obterPeriodoAnterior = (dias: number) => {
   const hoje = new Date();
@@ -762,6 +775,98 @@ export const relatoriosService = {
       
     } catch (error: any) {
       console.error('Erro ao obter clientes top compradores:', error);
+      throw new Error(error.message || 'Erro interno do servidor');
+    }
+  },
+
+  // Obter relatório financeiro e de pedidos
+  async obterRelatorioFinanceiro(periodo: string = '7d'): Promise<RelatorioFinanceiro> {
+    try {
+      let dias = 7;
+      
+      switch (periodo) {
+        case '30d':
+          dias = 30;
+          break;
+        case 'month':
+          dias = 30;
+          break;
+        default:
+          dias = 7;
+      }
+      
+      const hoje = new Date();
+      const inicioAtual = new Date(hoje);
+      inicioAtual.setDate(hoje.getDate() - dias);
+      
+      // Obter usuário atual
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+      
+      // Buscar todos os pedidos do período (sem filtrar por status)
+      let query = supabase
+        .from('pedidos')
+        .select('valor_total, valor_pago, status_pagamento, status, data_pedido, criado_por')
+        .gte('data_pedido', inicioAtual.toISOString())
+        .lte('data_pedido', hoje.toISOString());
+      
+      // REGRA DE NEGÓCIO: Vendedor só vê seus dados
+      if (isVendedor && user?.id) {
+        query = query.eq('criado_por', user.id);
+      }
+      
+      const { data: pedidos, error } = await query;
+      
+      if (error) throw error;
+      
+      if (!pedidos || pedidos.length === 0) {
+        return {
+          valor_total_pedidos: 0,
+          valor_pago: 0,
+          valor_pendente: 0,
+          quantidade_pedidos: 0,
+          quantidade_entregue: 0,
+          quantidade_pendente: 0,
+          quantidade_cancelado: 0,
+          ticket_medio: 0,
+          percentual_pago: 0,
+          percentual_pendente: 0
+        };
+      }
+      
+      // Calcular métricas
+      const valor_total_pedidos = pedidos.reduce((sum, p) => sum + (p.valor_total || 0), 0);
+      const valor_pago = pedidos.reduce((sum, p) => sum + (p.valor_pago || 0), 0);
+      const valor_pendente = valor_total_pedidos - valor_pago;
+      
+      const quantidade_pedidos = pedidos.length;
+      const quantidade_entregue = pedidos.filter(p => 
+        p.status === 'entregue' || p.status === 'concluido'
+      ).length;
+      const quantidade_pendente = pedidos.filter(p => 
+        p.status !== 'entregue' && p.status !== 'concluido' && p.status !== 'cancelado'
+      ).length;
+      const quantidade_cancelado = pedidos.filter(p => p.status === 'cancelado').length;
+      
+      const ticket_medio = quantidade_pedidos > 0 ? valor_total_pedidos / quantidade_pedidos : 0;
+      const percentual_pago = valor_total_pedidos > 0 ? (valor_pago / valor_total_pedidos) * 100 : 0;
+      const percentual_pendente = valor_total_pedidos > 0 ? (valor_pendente / valor_total_pedidos) * 100 : 0;
+      
+      return {
+        valor_total_pedidos,
+        valor_pago,
+        valor_pendente,
+        quantidade_pedidos,
+        quantidade_entregue,
+        quantidade_pendente,
+        quantidade_cancelado,
+        ticket_medio,
+        percentual_pago,
+        percentual_pendente
+      };
+      
+    } catch (error: any) {
+      console.error('Erro ao obter relatório financeiro:', error);
       throw new Error(error.message || 'Erro interno do servidor');
     }
   }

@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { BarChart3, TrendingUp, DollarSign, Calendar, Download, Filter } from "lucide-react";
+import { BarChart3, TrendingUp, DollarSign, Calendar, Download, Filter, Package, CheckCircle, Clock, XCircle } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
 import { relatoriosService } from "@/services/supabaseRelatorios";
 
@@ -17,6 +17,7 @@ function Reports() {
   const [topProducts, setTopProducts] = useState<any[]>([]);
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
   const [neighborhoods, setNeighborhoods] = useState<any[]>([]);
+  const [financialData, setFinancialData] = useState<any>(null);
 
   // Função para carregar todos os dados
   const carregarDados = async () => {
@@ -30,13 +31,15 @@ function Reports() {
         vendasResponse,
         produtosResponse,
         pagamentosResponse,
-        bairrosResponse
+        bairrosResponse,
+        financialResponse
       ] = await Promise.all([
         relatoriosService.obterDashboard(selectedPeriod),
         relatoriosService.obterVendasPorDia(),
         relatoriosService.obterTopProdutos(),
         relatoriosService.obterMetodosPagamento(),
-        relatoriosService.obterPedidosPorBairro()
+        relatoriosService.obterPedidosPorBairro(),
+        relatoriosService.obterRelatorioFinanceiro(selectedPeriod)
       ]);
       
       setDashboardData(dashboardResponse);
@@ -44,6 +47,7 @@ function Reports() {
       setTopProducts(produtosResponse);
       setPaymentMethods(pagamentosResponse);
       setNeighborhoods(bairrosResponse);
+      setFinancialData(financialResponse);
       
     } catch (err) {
       console.error('Erro ao carregar dados dos relatórios:', err);
@@ -202,6 +206,140 @@ function Reports() {
           </Card>
         ))}
       </div>
+
+      {/* Relatório Financeiro e de Pedidos */}
+      <Card className="border-0 shadow-md">
+        <CardHeader>
+          <CardTitle>Relatório Financeiro e de Pedidos</CardTitle>
+          <CardDescription>Análise completa de valores e quantidades de pedidos no período selecionado</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {financialData && (
+            <div className="space-y-6">
+              {/* KPIs Financeiros */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-blue-700">Valor Total dos Pedidos</p>
+                    <DollarSign className="w-5 h-5 text-blue-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-blue-900">{formatarMoeda(financialData.valor_total_pedidos)}</p>
+                  <p className="text-xs text-blue-600 mt-1">Todos os status</p>
+                </div>
+                
+                <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-green-700">Valor Pago</p>
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-green-900">{formatarMoeda(financialData.valor_pago)}</p>
+                  <p className="text-xs text-green-600 mt-1">
+                    {financialData.percentual_pago?.toFixed(1)}% do total
+                  </p>
+                </div>
+                
+                <div className="p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg border border-orange-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-orange-700">Valor Pendente</p>
+                    <Clock className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-orange-900">{formatarMoeda(financialData.valor_pendente)}</p>
+                  <p className="text-xs text-orange-600 mt-1">
+                    {financialData.percentual_pendente?.toFixed(1)}% do total
+                  </p>
+                </div>
+                
+                <div className="p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg border border-purple-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-purple-700">Ticket Médio</p>
+                    <TrendingUp className="w-5 h-5 text-purple-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-purple-900">{formatarMoeda(financialData.ticket_medio || 0)}</p>
+                  <p className="text-xs text-purple-600 mt-1">Por pedido</p>
+                </div>
+              </div>
+
+              {/* KPIs de Quantidade */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-gray-700">Total de Pedidos</p>
+                    <Package className="w-5 h-5 text-gray-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-gray-900">{financialData.quantidade_pedidos}</p>
+                  <p className="text-xs text-gray-600 mt-1">Todos os status</p>
+                </div>
+                
+                <div className="p-4 bg-green-50 rounded-lg border border-green-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-green-700">Pedidos Entregues</p>
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-green-900">{financialData.quantidade_entregue}</p>
+                  <p className="text-xs text-green-600 mt-1">
+                    {financialData.quantidade_pedidos > 0 
+                      ? ((financialData.quantidade_entregue / financialData.quantidade_pedidos) * 100).toFixed(1)
+                      : 0}% do total
+                  </p>
+                </div>
+                
+                <div className="p-4 bg-orange-50 rounded-lg border border-orange-200">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-sm font-medium text-orange-700">Pedidos Pendentes</p>
+                    <Clock className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <p className="text-2xl font-bold text-orange-900">{financialData.quantidade_pendente}</p>
+                  <p className="text-xs text-orange-600 mt-1">
+                    {financialData.quantidade_pedidos > 0 
+                      ? ((financialData.quantidade_pendente / financialData.quantidade_pedidos) * 100).toFixed(1)
+                      : 0}% do total
+                  </p>
+                </div>
+                
+                {financialData.quantidade_cancelado && financialData.quantidade_cancelado > 0 && (
+                  <div className="p-4 bg-red-50 rounded-lg border border-red-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-red-700">Pedidos Cancelados</p>
+                      <XCircle className="w-5 h-5 text-red-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-red-900">{financialData.quantidade_cancelado}</p>
+                    <p className="text-xs text-red-600 mt-1">
+                      {financialData.quantidade_pedidos > 0 
+                        ? ((financialData.quantidade_cancelado / financialData.quantidade_pedidos) * 100).toFixed(1)
+                        : 0}% do total
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Gráfico de Barras - Comparação Valores */}
+              <div className="mt-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-4">Distribuição de Valores</h3>
+                <ResponsiveContainer width="100%" height={200}>
+                  <BarChart data={[
+                    { name: 'Total', valor: financialData.valor_total_pedidos, fill: '#6366F1' },
+                    { name: 'Pago', valor: financialData.valor_pago, fill: '#10B981' },
+                    { name: 'Pendente', valor: financialData.valor_pendente, fill: '#F59E0B' }
+                  ]}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Bar dataKey="valor" radius={4}>
+                      {[
+                        { name: 'Total', fill: '#6366F1' },
+                        { name: 'Pago', fill: '#10B981' },
+                        { name: 'Pendente', fill: '#F59E0B' }
+                      ].map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={entry.fill} />
+                      ))}
+                    </Bar>
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Sales Chart */}
