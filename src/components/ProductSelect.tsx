@@ -27,10 +27,18 @@ export function ProductSelect({
   const [isOpen, setIsOpen] = useState(false);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Carregar produto selecionado se não estiver na lista principal
+  // Carregar produto selecionado
   useEffect(() => {
     const loadSelectedProduct = async () => {
-      if (value && !products.find(p => p.id.toString() === value)) {
+      if (value) {
+        // Primeiro, tentar encontrar na lista de produtos já carregados
+        const produtoNaLista = products.find(p => p.id.toString() === value);
+        if (produtoNaLista) {
+          setSelectedProduct(produtoNaLista);
+          return;
+        }
+        
+        // Se não encontrou, buscar no banco
         try {
           const { data: produto, error } = await supabase
             .from('produtos')
@@ -218,7 +226,7 @@ export function ProductSelect({
       disabled={disabled}
       onOpenChange={handleOpenChange}
     >
-      <SelectTrigger>
+      <SelectTrigger className="min-h-[40px] text-left">
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent 
@@ -292,17 +300,18 @@ export function ProductSelect({
                   value={product.id.toString()}
                   disabled={produtoDesabilitado}
                   className={`cursor-pointer ${produtoDesabilitado ? "opacity-50" : ""}`}
+                  textValue={getProductLabel(product)}
                 >
-                  <div className="flex flex-col w-full">
-                    <div className="flex justify-between items-center">
-                      <span className={`font-medium ${isInactive ? 'text-red-600' : ''}`}>
+                  <div className="flex flex-col w-full min-w-0">
+                    <div className="flex justify-between items-start gap-2">
+                      <span className={`font-medium ${isInactive ? 'text-red-600' : ''} break-words flex-1 min-w-0`} title={getProductLabel(product)}>
                         {getProductLabel(product)}
                       </span>
-                      <span className="text-xs text-muted-foreground ml-2">
+                      <span className="text-xs text-muted-foreground shrink-0">
                         R$ {(Number(product.preco_venda) || 0).toFixed(2)}
                       </span>
                     </div>
-                    <div className="flex justify-between items-center text-xs">
+                    <div className="flex justify-between items-center text-xs mt-1">
                       <span className="text-muted-foreground">{product.categoria}</span>
                       <span className={`
                         ${isInactive ? 'text-red-600' :

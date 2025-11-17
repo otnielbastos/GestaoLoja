@@ -290,150 +290,212 @@ export function OrderItems({ items, onItemsChange, tipoPedido = 'pronta_entrega'
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <div className="flex items-center justify-between">
-        <Label>Itens do Pedido *</Label>
+        <Label className="text-base font-medium text-gray-700">Adicionar Produtos *</Label>
         <Button 
           variant="outline" 
           size="sm"
           onClick={handleRefreshProducts}
           disabled={productsLoading}
+          className="hover:bg-gray-50 transition-colors"
         >
           {productsLoading ? (
             <Loader2 className="w-4 h-4 mr-2 animate-spin" />
           ) : (
             <RefreshCw className="w-4 h-4 mr-2" />
           )}
-          Atualizar produtos
+          Atualizar
         </Button>
       </div>
       
-      {/* Add new item */}
-      <div className="grid grid-cols-12 gap-2 items-end">
-        <div className="col-span-5">
-          <Label htmlFor="productSelect" className="text-xs">Produto</Label>
-          <ProductSelect
-            value={newItem.productId || ""}
-            onValueChange={handleProductSelect}
-            placeholder={productsLoading ? "Carregando..." : "Selecione um produto"}
-            tipoPedido={tipoPedido}
-            disabled={productsLoading}
-          />
-        </div>
-        <div className="col-span-2">
-          <Label htmlFor="quantity" className="text-xs">Qtd</Label>
-          <Input
-            id="quantity"
-            type="number"
-            min="1"
-            value={newItem.quantity}
-            onChange={(e) => setNewItem(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
-          />
-        </div>
-        <div className="col-span-3">
-          <Label htmlFor="unitPrice" className="text-xs">Preço Unit.</Label>
-          <Input
-            id="unitPrice"
-            type="number"
-            step="0.01"
-            min="0"
-            value={newItem.unitPrice}
-            onChange={(e) => setNewItem(prev => ({ ...prev, unitPrice: parseFloat(e.target.value) || 0 }))}
-            className="bg-gray-50"
-            readOnly
-          />
-        </div>
-        <div className="col-span-2">
-          <Button 
-            type="button" 
-            onClick={addItem} 
-            size="sm" 
-            className="w-full"
-            disabled={!newItem.productId || newItem.unitPrice <= 0 || productsLoading}
-          >
-            <Plus className="w-4 h-4" />
-          </Button>
+      {/* Add new item - Layout responsivo */}
+      <div className="p-4 bg-gradient-to-br from-gray-50 to-white border-2 border-dashed border-gray-300 rounded-xl">
+        <div className="grid grid-cols-12 gap-3 items-end">
+          <div className="col-span-12 sm:col-span-5">
+            <Label htmlFor="productSelect" className="text-xs font-semibold text-gray-600">Produto</Label>
+            <ProductSelect
+              value={newItem.productId || ""}
+              onValueChange={handleProductSelect}
+              placeholder={productsLoading ? "Carregando..." : "Selecione um produto"}
+              tipoPedido={tipoPedido}
+              disabled={productsLoading}
+            />
+          </div>
+          <div className="col-span-4 sm:col-span-2">
+            <Label htmlFor="quantity" className="text-xs font-semibold text-gray-600">Qtd</Label>
+            <Input
+              id="quantity"
+              type="number"
+              min="1"
+              value={newItem.quantity}
+              onChange={(e) => setNewItem(prev => ({ ...prev, quantity: parseInt(e.target.value) || 1 }))}
+              className="font-medium"
+            />
+          </div>
+          <div className="col-span-5 sm:col-span-3">
+            <Label htmlFor="unitPrice" className="text-xs font-semibold text-gray-600">Preço Unit.</Label>
+            <Input
+              id="unitPrice"
+              type="number"
+              step="0.01"
+              min="0"
+              value={newItem.unitPrice}
+              onChange={(e) => setNewItem(prev => ({ ...prev, unitPrice: parseFloat(e.target.value) || 0 }))}
+              className="bg-gray-100 font-medium"
+              readOnly
+            />
+          </div>
+          <div className="col-span-3 sm:col-span-2">
+            <Button 
+              type="button" 
+              onClick={addItem} 
+              size="sm" 
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-semibold shadow-sm"
+              disabled={!newItem.productId || newItem.unitPrice <= 0 || productsLoading}
+            >
+              <Plus className="w-4 h-4 sm:mr-1" />
+              <span className="hidden sm:inline">Adicionar</span>
+            </Button>
+          </div>
         </div>
       </div>
 
-      {/* Items table */}
+      {/* Items list - Layout responsivo: cards no mobile, tabela no desktop */}
       {items.length > 0 && (
-        <div className="border rounded-md">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Produto</TableHead>
-                <TableHead className="w-20">Qtd</TableHead>
-                <TableHead className="w-24">Preço Unit.</TableHead>
-                <TableHead className="w-24">Total</TableHead>
-                <TableHead className="w-12"></TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {items.map((item) => (
-                <TableRow key={item.id}>
-                  <TableCell>
-                    <div className="border-0 p-0">
-                      <ProductSelect
-                                                  value={item.productId ? item.productId.toString() : ""}
-                                                  onValueChange={(value) => {
-                            if (value && value !== "") {
-                              const productId = parseInt(value);
-                              if (!isNaN(productId)) {
-                                updateItemProduct(item.id, productId);
-                              }
-                            }
-                          }}
-                        placeholder="Selecione um produto"
-                        tipoPedido={tipoPedido}
+        <>
+          {/* Layout Mobile: Cards verticais (sem scroll horizontal) */}
+          <div className="lg:hidden space-y-3">
+            {items.map((item, index) => (
+              <div 
+                key={item.id}
+                className="p-4 bg-white border-2 border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow"
+              >
+                <div className="space-y-3">
+                  {/* Produto - Nome simples */}
+                  <div>
+                    <Label className="text-xs font-semibold text-gray-600 mb-1.5 block">Produto</Label>
+                    <div className="p-3 bg-gray-50 rounded-md border border-gray-200">
+                      <p className="text-sm font-semibold text-gray-800">{item.productName}</p>
+                    </div>
+                  </div>
+
+                  {/* Quantidade e Valores */}
+                  <div className="grid grid-cols-3 gap-3">
+                    <div>
+                      <Label className="text-xs font-semibold text-gray-600 mb-1.5 block">Qtd</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 1)}
+                        className="font-semibold text-center"
                       />
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      type="number"
-                      min="1"
-                      value={item.quantity}
-                      onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 1)}
-                      className="border-0 p-0 h-auto focus-visible:ring-0"
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm font-medium">
-                      R$ {(item.unitPrice || 0).toFixed(2)}
+                    <div>
+                      <Label className="text-xs font-semibold text-gray-600 mb-1.5 block">Preço Unit.</Label>
+                      <div className="h-10 flex items-center justify-center bg-gray-50 rounded-md border">
+                        <span className="text-sm font-semibold text-gray-700">
+                          R$ {(item.unitPrice || 0).toFixed(2)}
+                        </span>
+                      </div>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm font-medium">
-                      R$ {(item.total || 0).toFixed(2)}
+                    <div>
+                      <Label className="text-xs font-semibold text-gray-600 mb-1.5 block">Total</Label>
+                      <div className="h-10 flex items-center justify-center bg-green-50 rounded-md border border-green-200">
+                        <span className="text-sm font-bold text-green-700">
+                          R$ {(item.total || 0).toFixed(2)}
+                        </span>
+                      </div>
                     </div>
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeItem(item.id)}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </Button>
-                  </TableCell>
+                  </div>
+
+                  {/* Botão remover */}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => removeItem(item.id)}
+                    className="w-full text-red-600 hover:bg-red-50 hover:text-red-700 hover:border-red-300 transition-colors"
+                  >
+                    <Trash2 className="w-4 h-4 mr-2" />
+                    Remover Item
+                  </Button>
+                </div>
+              </div>
+            ))}
+
+          </div>
+
+          {/* Layout Desktop: Tabela (mantém o design atual) */}
+          <div className="hidden lg:block border-2 border-gray-200 rounded-xl overflow-hidden shadow-sm">
+            <Table>
+              <TableHeader>
+                <TableRow className="bg-gradient-to-r from-gray-50 to-gray-100 border-b-2 border-gray-300">
+                  <TableHead className="min-w-[200px] w-[45%] font-bold text-gray-700">Produto</TableHead>
+                  <TableHead className="min-w-[80px] w-[12%] font-bold text-gray-700">Qtd</TableHead>
+                  <TableHead className="min-w-[100px] w-[15%] font-bold text-gray-700">Preço Unit.</TableHead>
+                  <TableHead className="min-w-[100px] w-[15%] font-bold text-gray-700">Total</TableHead>
+                  <TableHead className="min-w-[80px] w-[13%] text-right font-bold text-gray-700">Ações</TableHead>
                 </TableRow>
-              ))}
-              <TableRow>
-                <TableCell colSpan={3} className="font-bold text-right">Total Geral:</TableCell>
-                <TableCell className="font-bold">R$ {totalValue.toFixed(2)}</TableCell>
-                <TableCell></TableCell>
-              </TableRow>
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {items.map((item, index) => (
+                  <TableRow 
+                    key={item.id}
+                    className={`transition-colors hover:bg-gray-50 ${index % 2 === 0 ? 'bg-white' : 'bg-gray-50/50'}`}
+                  >
+                    <TableCell className="min-w-[200px] w-[45%] py-3">
+                      <div className="flex items-center">
+                        <p className="text-sm font-medium text-gray-800">{item.productName}</p>
+                      </div>
+                    </TableCell>
+                    <TableCell className="min-w-[80px] py-3">
+                      <Input
+                        type="number"
+                        min="1"
+                        value={item.quantity}
+                        onChange={(e) => updateItem(item.id, 'quantity', parseInt(e.target.value) || 1)}
+                        className="border-0 p-0 h-auto focus-visible:ring-0 w-16 font-semibold text-center"
+                      />
+                    </TableCell>
+                    <TableCell className="min-w-[100px] py-3">
+                      <div className="text-sm font-semibold whitespace-nowrap text-gray-700">
+                        R$ {(item.unitPrice || 0).toFixed(2)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="min-w-[100px] py-3">
+                      <div className="text-sm font-bold whitespace-nowrap text-green-700">
+                        R$ {(item.total || 0).toFixed(2)}
+                      </div>
+                    </TableCell>
+                    <TableCell className="min-w-[80px] text-right py-3">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeItem(item.id)}
+                        className="h-8 w-8 p-0 hover:bg-red-50 hover:text-red-600 transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
 
       {items.length === 0 && (
-        <p className="text-center text-muted-foreground py-4 border rounded-md">
-          Nenhum item adicionado ao pedido
-        </p>
+        <div className="text-center py-12 border-2 border-dashed border-gray-300 rounded-xl bg-gray-50">
+          <svg className="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+          </svg>
+          <p className="text-gray-500 font-medium text-lg">Nenhum item adicionado ao pedido</p>
+          <p className="text-gray-400 text-sm mt-2">Selecione produtos acima para adicionar</p>
+        </div>
       )}
     </div>
   );

@@ -260,7 +260,7 @@ function Reports() {
               </div>
 
               {/* KPIs de Quantidade */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className={`grid grid-cols-1 sm:grid-cols-2 ${financialData.quantidade_cancelado && financialData.quantidade_cancelado > 0 ? 'lg:grid-cols-4' : 'lg:grid-cols-3'} gap-4`}>
                 <div className="p-4 bg-gray-50 rounded-lg border border-gray-200">
                   <div className="flex items-center justify-between mb-2">
                     <p className="text-sm font-medium text-gray-700">Total de Pedidos</p>
@@ -296,7 +296,7 @@ function Reports() {
                   </p>
                 </div>
                 
-                {financialData.quantidade_cancelado && financialData.quantidade_cancelado > 0 && (
+                {financialData.quantidade_cancelado !== undefined && financialData.quantidade_cancelado !== null && financialData.quantidade_cancelado > 0 && (
                   <div className="p-4 bg-red-50 rounded-lg border border-red-200">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-sm font-medium text-red-700">Pedidos Cancelados</p>

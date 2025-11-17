@@ -224,7 +224,7 @@ export function OrderFormModal({ isOpen, onClose, onSubmit, order }: OrderFormMo
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent 
-        className="max-w-6xl max-h-[95vh] w-[95vw] overflow-y-auto"
+        className="max-w-7xl max-h-[95vh] w-[95vw] overflow-y-auto"
         style={{
           // Melhor suporte a dispositivos móveis
           touchAction: 'pan-y',
@@ -240,30 +240,51 @@ export function OrderFormModal({ isOpen, onClose, onSubmit, order }: OrderFormMo
           </DialogDescription>
         </DialogHeader>
         
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 touch-optimized">
-            <div className="space-y-4">
-              <CustomerSelect
-                value={formData.customerId || undefined}
-                onValueChange={handleCustomerSelect}
-              />
+        <form onSubmit={handleSubmit} className="space-y-8">
+          {/* Seção Superior: Informações do Pedido */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 pb-4 border-b-2 border-blue-500">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              </div>
+              <h3 className="text-xl font-bold text-gray-800">Informações do Pedido</h3>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {/* Cliente - Ocupa 2 colunas em telas grandes */}
+              <div className="sm:col-span-2 lg:col-span-1">
+                <CustomerSelect
+                  value={formData.customerId || undefined}
+                  onValueChange={handleCustomerSelect}
+                />
+              </div>
 
-              {/* Tipo de Pedido */}
-              <div>
-                <Label className="text-base font-medium">Tipo de Pedido *</Label>
+              {/* Tipo de Pedido - Ocupa 2 colunas em telas grandes */}
+              <div className="sm:col-span-2 lg:col-span-2">
+                <Label className="text-base font-medium flex items-center gap-2 mb-2">
+                  <span>Tipo de Pedido *</span>
+                </Label>
                 <RadioGroup 
                   value={formData.tipo} 
                   onValueChange={(value) => handleChange('tipo', value)}
-                  className="mt-2"
+                  className="grid grid-cols-1 sm:grid-cols-2 gap-3"
                 >
                   {orderTypes.map((type) => (
-                    <div key={type.value} className="flex items-start space-x-2 p-3 border rounded-lg">
+                    <div 
+                      key={type.value} 
+                      className={`flex items-start space-x-3 p-4 border-2 rounded-xl transition-all duration-200 cursor-pointer ${
+                        formData.tipo === type.value 
+                          ? 'border-blue-500 bg-blue-50 shadow-sm' 
+                          : 'border-gray-200 hover:border-gray-300 hover:shadow-sm'
+                      }`}
+                    >
                       <RadioGroupItem value={type.value} id={type.value} className="mt-1" />
-                      <div className="flex-1">
-                        <Label htmlFor={type.value} className="font-medium cursor-pointer">
+                      <div className="flex-1 min-w-0">
+                        <Label htmlFor={type.value} className="font-semibold cursor-pointer text-sm">
                           {type.label}
                         </Label>
-                        <p className="text-sm text-muted-foreground mt-1">
+                        <p className="text-xs text-muted-foreground mt-1">
                           {type.description}
                         </p>
                       </div>
@@ -272,34 +293,72 @@ export function OrderFormModal({ isOpen, onClose, onSubmit, order }: OrderFormMo
                 </RadioGroup>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="date">Data do Pedido *</Label>
-                  <Input
-                    id="date"
-                    type="date"
-                    value={formData.date}
-                    onChange={(e) => handleChange('date', e.target.value)}
-                    required
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="time">Horário do Pedido *</Label>
-                  <Input
-                    id="time"
-                    type="time"
-                    value={formData.time}
-                    onChange={(e) => handleChange('time', e.target.value)}
-                    required
-                  />
-                </div>
+              {/* Data e Horário do Pedido */}
+              <div>
+                <Label htmlFor="date">Data do Pedido *</Label>
+                <Input
+                  id="date"
+                  type="date"
+                  value={formData.date}
+                  onChange={(e) => handleChange('date', e.target.value)}
+                  required
+                />
+              </div>
+              <div>
+                <Label htmlFor="time">Horário do Pedido *</Label>
+                <Input
+                  id="time"
+                  type="time"
+                  value={formData.time}
+                  onChange={(e) => handleChange('time', e.target.value)}
+                  required
+                />
+              </div>
+
+              {/* Status e Pagamento */}
+              <div>
+                <Label htmlFor="status">Status *</Label>
+                <Select value={formData.status} onValueChange={(value) => handleChange('status', value)}>
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {getStatusOptions(formData.tipo).map(status => (
+                      <SelectItem key={status.value} value={status.value}>
+                        {status.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="paymentMethod">Forma de Pagamento *</Label>
+                <Select value={formData.paymentMethod} onValueChange={(value) => handleChange('paymentMethod', value)}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {paymentMethods.map(method => (
+                      <SelectItem key={method} value={method}>
+                        {method}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               {/* Campos de Entrega - Obrigatórios para encomendas */}
               {formData.tipo === "encomenda" && (
-                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                  <h4 className="font-medium text-blue-900 mb-3">Detalhes da Encomenda</h4>
-                  <div className="grid grid-cols-2 gap-4">
+                <div className="sm:col-span-2 lg:col-span-3 p-5 bg-gradient-to-br from-blue-50 to-indigo-50 border-2 border-blue-200 rounded-xl shadow-sm">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="p-1.5 bg-blue-500 rounded-lg">
+                      <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <h4 className="font-semibold text-blue-900">Detalhes da Encomenda</h4>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div>
                       <Label htmlFor="data_entrega_prevista">Data de Entrega Prevista *</Label>
                       <Input
@@ -320,102 +379,110 @@ export function OrderFormModal({ isOpen, onClose, onSubmit, order }: OrderFormMo
                         onChange={(e) => handleChange('horario_entrega', e.target.value)}
                       />
                     </div>
-                  </div>
-                  <div className="mt-4">
-                    <Label htmlFor="observacoes_producao">Observações para Produção</Label>
-                    <Textarea
-                      id="observacoes_producao"
-                      value={formData.observacoes_producao}
-                      onChange={(e) => handleChange('observacoes_producao', e.target.value)}
-                      placeholder="Instruções específicas para a produção..."
-                      rows={3}
-                    />
+                    <div className="sm:col-span-2">
+                      <Label htmlFor="observacoes_producao">Observações para Produção</Label>
+                      <Textarea
+                        id="observacoes_producao"
+                        value={formData.observacoes_producao}
+                        onChange={(e) => handleChange('observacoes_producao', e.target.value)}
+                        placeholder="Instruções específicas para a produção..."
+                        rows={2}
+                      />
+                    </div>
                   </div>
                 </div>
               )}
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label htmlFor="status">Status *</Label>
-                  <Select value={formData.status} onValueChange={(value) => handleChange('status', value)}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {getStatusOptions(formData.tipo).map(status => (
-                        <SelectItem key={status.value} value={status.value}>
-                          {status.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div>
-                  <Label htmlFor="paymentMethod">Forma de Pagamento *</Label>
-                  <Select value={formData.paymentMethod} onValueChange={(value) => handleChange('paymentMethod', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {paymentMethods.map(method => (
-                        <SelectItem key={method} value={method}>
-                          {method}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-
-              <div>
+              {/* Endereço de Entrega */}
+              <div className="sm:col-span-2 lg:col-span-3">
                 <Label htmlFor="address">Endereço de Entrega</Label>
                 <Textarea
                   id="address"
                   value={formData.address}
                   onChange={(e) => handleChange('address', e.target.value)}
                   placeholder="Endereço completo para entrega..."
-                  rows={3}
+                  rows={2}
                 />
               </div>
 
-              <div>
+              {/* Observações Gerais - Ocupa toda a largura */}
+              <div className="sm:col-span-2 lg:col-span-3">
                 <Label htmlFor="notes">Observações Gerais</Label>
                 <Textarea
                   id="notes"
                   value={formData.notes}
                   onChange={(e) => handleChange('notes', e.target.value)}
                   placeholder="Observações adicionais..."
-                  rows={3}
+                  rows={2}
                 />
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <OrderItems
-                items={formData.items}
-                onItemsChange={(items) => setFormData(prev => ({ ...prev, items }))}
-                tipoPedido={formData.tipo}
-              />
-              
-              <div className="bg-gray-50 p-4 rounded-lg">
-                <div className="flex justify-between items-center text-lg font-bold">
-                  <span>Total:</span>
-                  <span>R$ {total.toFixed(2)}</span>
-                </div>
-                {formData.tipo === "encomenda" && (
-                  <p className="text-sm text-blue-600 mt-2">
-                    💡 Encomenda: Os produtos serão produzidos após aprovação
-                  </p>
-                )}
               </div>
             </div>
           </div>
 
-          <div className="flex justify-end space-x-2">
-            <Button type="button" variant="outline" onClick={onClose}>
+          {/* Seção Inferior: Itens do Pedido */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3 pb-4 border-b-2 border-green-500">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                </svg>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-xl font-bold text-gray-800">Itens do Pedido</h3>
+                <p className="text-xs text-gray-500 mt-0.5">Adicione os produtos ao pedido</p>
+              </div>
+              {formData.items.length > 0 && (
+                <div className="px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-sm font-semibold">
+                  {formData.items.length} {formData.items.length === 1 ? 'item' : 'itens'}
+                </div>
+              )}
+            </div>
+            
+            <OrderItems
+              items={formData.items}
+              onItemsChange={(items) => setFormData(prev => ({ ...prev, items }))}
+              tipoPedido={formData.tipo}
+            />
+            
+            <div className="bg-gradient-to-br from-gray-50 to-gray-100 p-5 rounded-xl border-2 border-gray-200 shadow-sm">
+              <div className="flex justify-between items-center">
+                <div className="flex items-center gap-2">
+                  <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                  <span className="text-lg font-bold text-gray-800">Total do Pedido:</span>
+                </div>
+                <span className="text-2xl font-bold text-green-600">R$ {total.toFixed(2)}</span>
+              </div>
+              {formData.tipo === "encomenda" && (
+                <div className="mt-3 pt-3 border-t border-gray-300 flex items-start gap-2">
+                  <svg className="w-5 h-5 text-blue-500 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
+                    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                  </svg>
+                  <p className="text-sm text-blue-700">
+                    <span className="font-semibold">Encomenda:</span> Os produtos serão produzidos após aprovação do pedido.
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="flex justify-end space-x-3 pt-6 border-t">
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={onClose}
+              className="px-6"
+            >
               Cancelar
             </Button>
-            <Button type="submit">
+            <Button 
+              type="submit"
+              className="px-6 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
+            >
+              <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
               {order ? 'Atualizar' : 'Criar'} Pedido
             </Button>
           </div>
