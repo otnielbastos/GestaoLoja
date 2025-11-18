@@ -19,7 +19,7 @@ export default function Hero() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
         <div className="text-center text-white">
           <h2 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
-            O Sabor da Itália em Casa
+            Da Minha Família para a Sua
           </h2>
           <p className="text-xl md:text-2xl mb-4 font-medium">
             Nhoques Artesanais Congelados

@@ -4,7 +4,7 @@ export default function Benefits() {
     {
       icon: 'ri-heart-line',
       title: 'Fresco e Artesanal',
-      description: 'Feito com ingredientes de alta qualidade, mantendo o sabor caseiro tradicional da Itália.',
+      description: 'Feito com ingredientes selecionados, com aquele sabor caseiro que lembra comida de família.',
       // image: '/images/website/benefit-fresh-artisanal.jpg'
       image: '/images/website/Massa2.png'
     },
@@ -30,7 +30,7 @@ export default function Benefits() {
             Por que escolher nossos nhoques?
           </h3>
           <p className="text-xl text-gray-600 max-w-3xl mx-auto">
-            Combinamos tradição italiana com praticidade moderna para levar o melhor da gastronomia até sua mesa
+            Unimos o sabor do artesanal à praticidade do dia a dia para levar refeições especiais até à sua mesa
           </p>
         </div>
         

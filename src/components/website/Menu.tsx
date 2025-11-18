@@ -4,7 +4,7 @@ export default function Menu() {
     {
       id: 1,
       name: 'Nhoque Tradicional',
-      description: 'Nhoque clássico feito com batata e farinha, sabor autêntico da tradição italiana.',
+      description: 'Nhoque clássico feito com batata e farinha, com aquele sabor caseiro de família.',
       price: 'R$ 25,00',
       image: '/images/website/menu-nhoque-tradicional.png',
       category: 'nhoque'
