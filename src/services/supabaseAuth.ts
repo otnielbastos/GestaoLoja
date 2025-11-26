@@ -135,13 +135,20 @@ export const authService = {
 
       // Verificar senha
       if (!usuarios.senha_hash) {
-        console.error('ERRO: Usuário não possui senha_hash!');
-        throw new Error('Erro de configuração do usuário');
+        console.error('❌ ERRO: Usuário não possui senha_hash!');
+        console.error('   Email:', email);
+        console.error('   ID:', usuarios.id);
+        console.error('   Nome:', usuarios.nome);
+        console.error('   ⚠️  SOLUÇÃO: Use a função "Resetar Senha" na tela de Usuários para configurar a senha deste usuário.');
+        await registrarTentativaLogin(email, ip, false, 'Usuário sem senha_hash configurado', userAgent);
+        throw new Error('Usuário não possui senha configurada. Entre em contato com o administrador para resetar a senha.');
       }
       
       const senhaValida = await verifyPassword(senhaInput, usuarios.senha_hash);
       
       if (!senhaValida) {
+        console.error('❌ Senha inválida para usuário:', email);
+        console.error('   Verifique se a senha está correta ou se o hash está no formato bcrypt válido.');
         // Incrementar tentativas de login
         const novasTentativas = usuarios.tentativas_login + 1;
         

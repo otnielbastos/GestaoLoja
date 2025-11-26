@@ -251,7 +251,7 @@ export const usuariosService = {
   // Atualizar usuário
   async atualizar(id: number, data: Partial<UsuarioData>) {
     try {
-      const { nome, email, perfil_id, ativo } = data;
+      const { nome, email, password, perfil_id, ativo } = data;
 
       // REGRA DE NEGÓCIO: Buscar usuário atual
       const { data: usuarioAtual, error: usuarioError } = await supabase
@@ -271,6 +271,10 @@ export const usuariosService = {
 
       if (email !== undefined && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
         throw new Error('Email inválido');
+      }
+
+      if (password !== undefined && password.trim() !== '' && password.length < 6) {
+        throw new Error('Senha deve ter pelo menos 6 caracteres');
       }
 
       if (perfil_id !== undefined && perfil_id < 1) {
@@ -321,6 +325,20 @@ export const usuariosService = {
       if (perfil_id !== undefined) updateData.perfil_id = perfil_id;
       if (ativo !== undefined) updateData.ativo = ativo;
 
+      // REGRA DE NEGÓCIO: Se senha foi fornecida, fazer hash e atualizar
+      if (password !== undefined && password.trim() !== '') {
+        const senhaHash = await hashPassword(password.trim());
+        updateData.senha_hash = senhaHash;
+        updateData.tentativas_login = 0;
+        updateData.bloqueado_ate = null;
+        
+        // Desativar todas as sessões do usuário para forçar novo login
+        await supabase
+          .from('sessoes')
+          .update({ ativo: false })
+          .eq('usuario_id', id);
+      }
+
       const { error } = await supabase
         .from('usuarios')
         .update(updateData)
@@ -336,12 +354,14 @@ export const usuariosService = {
         'usuarios',
         id,
         usuarioAtual,
-        updateData
+        { ...updateData, password: password ? '***' : undefined } // Não registrar senha em texto
       );
 
       return {
         success: true,
-        message: 'Usuário atualizado com sucesso'
+        message: password && password.trim() !== '' 
+          ? 'Usuário atualizado com sucesso. Senha alterada.' 
+          : 'Usuário atualizado com sucesso'
       };
 
     } catch (error: any) {

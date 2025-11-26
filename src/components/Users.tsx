@@ -128,7 +128,7 @@ export function Users() {
     setFormData({
       nome: user.nome,
       email: user.email,
-      password: "",
+      password: "", // Sempre limpar senha ao editar (não mostrar senha existente)
       perfil_id: user.perfil_id,
       ativo: user.ativo
     });
@@ -156,19 +156,34 @@ export function Users() {
       return;
     }
 
+    // Validação de senha se fornecida
+    if (formData.password && formData.password.length < 6) {
+      toast({
+        title: "Erro",
+        description: "A senha deve ter pelo menos 6 caracteres.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     try {
       if (editingUser) {
-        const updateData: any = { ...formData };
-        if (!updateData.password) {
-          delete updateData.password; // Não enviar senha vazia
+        const updateData: any = {
+          nome: formData.nome,
+          email: formData.email,
+          perfil_id: parseInt(formData.perfil_id.toString()),
+          ativo: formData.ativo
+        };
+        
+        // Incluir senha apenas se foi preenchida
+        if (formData.password && formData.password.trim() !== '') {
+          updateData.password = formData.password;
         }
-        await api.usuarios.atualizar(editingUser.id, {
-          ...updateData,
-          perfil_id: parseInt(updateData.perfil_id.toString())
-        });
+        
+        const response = await api.usuarios.atualizar(editingUser.id, updateData);
         toast({
           title: "Sucesso",
-          description: "Usuário atualizado com sucesso.",
+          description: response.message || "Usuário atualizado com sucesso.",
         });
       } else {
         await api.usuarios.criar({
@@ -303,7 +318,7 @@ export function Users() {
                     
                     <div className="flex gap-2">
                       {checkPermission('usuarios', 'editar') && (
-                        <Button size="sm" variant="outline" onClick={() => handleEdit(user)}>
+                        <Button size="sm" variant="outline" onClick={() => handleEdit(user)} title="Editar usuário">
                           <Edit className="w-4 h-4" />
                         </Button>
                       )}
@@ -314,6 +329,7 @@ export function Users() {
                           variant={user.ativo ? "outline" : "default"}
                           onClick={() => toggleUserStatus(user.id, user.ativo)}
                           className={user.ativo ? "text-red-600 hover:text-red-700" : "text-green-600 hover:text-green-700"}
+                          title={user.ativo ? "Desativar usuário" : "Ativar usuário"}
                         >
                           {user.ativo ? <UserX className="w-4 h-4" /> : <UserCheck className="w-4 h-4" />}
                         </Button>
@@ -367,14 +383,23 @@ export function Users() {
                 
                 <div>
                   <label className="block text-sm font-medium mb-1">
-                    Senha {editingUser ? '(deixe vazio para manter)' : '*'}
+                    {editingUser ? 'Nova Senha' : 'Senha *'}
+                    {editingUser && (
+                      <span className="text-xs text-gray-500 font-normal ml-2">
+                        (deixe vazio para manter a senha atual)
+                      </span>
+                    )}
                   </label>
                   <Input
                     type="password"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    placeholder="Senha"
+                    placeholder={editingUser ? "Digite uma nova senha (mínimo 6 caracteres)" : "Senha (mínimo 6 caracteres)"}
+                    minLength={editingUser ? 0 : 6}
                   />
+                  {editingUser && formData.password && formData.password.length > 0 && formData.password.length < 6 && (
+                    <p className="text-xs text-red-500 mt-1">A senha deve ter pelo menos 6 caracteres</p>
+                  )}
                 </div>
                 
                 <div>
