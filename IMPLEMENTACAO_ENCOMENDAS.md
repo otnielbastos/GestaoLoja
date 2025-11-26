@@ -2,7 +2,7 @@
 
 ## 📋 Visão Geral
 
-Esta implementação adiciona ao SiloSystem um sistema completo de **encomendas** e **controle automático de estoque**, permitindo:
+Esta implementação adiciona ao GestaoLoja um sistema completo de **encomendas** e **controle automático de estoque**, permitindo:
 
 - ✅ **Vendas à pronta entrega** (produtos em estoque)
 - ✅ **Encomendas sob demanda** (produtos produzidos após pedido)
@@ -306,4 +306,4 @@ Para dúvidas ou problemas:
 
 ---
 
-**🎉 Sistema implementado com sucesso! O SiloSystem agora suporta encomendas e controle automático de estoque.** 
+**🎉 Sistema implementado com sucesso! O GestaoLoja agora suporta encomendas e controle automático de estoque.** 

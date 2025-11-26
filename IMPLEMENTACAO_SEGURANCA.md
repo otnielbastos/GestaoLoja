@@ -1,8 +1,8 @@
-# 🔐 Implementação de Segurança - SiloSystem
+# 🔐 Implementação de Segurança - GestaoLoja
 
 ## 📋 Resumo da Implementação
 
-Este documento descreve a implementação completa do sistema de segurança no SiloSystem, incluindo autenticação JWT, autorização baseada em roles (RBAC), auditoria e controle de acesso granular.
+Este documento descreve a implementação completa do sistema de segurança no GestaoLoja, incluindo autenticação JWT, autorização baseada em roles (RBAC), auditoria e controle de acesso granular.
 
 ## ✅ Funcionalidades Implementadas
 

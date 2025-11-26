@@ -1,4 +1,4 @@
-# SiloSystem - Loja Organizada Pro
+# GestaoLoja - Sistema de Gestão de Loja
 
 Sistema de gestão completo para lojas, com controle de produtos, estoque, vendas e muito mais.
 
@@ -13,7 +13,7 @@ Sistema de gestão completo para lojas, com controle de produtos, estoque, venda
 1. Clone o repositório:
 ```sh
 git clone <YOUR_GIT_URL>
-cd Silo
+cd GestaoLoja
 ```
 
 2. Configure as variáveis de ambiente:

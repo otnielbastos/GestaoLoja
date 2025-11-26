@@ -1,4 +1,4 @@
-# Sistema de Permissões - SiloSystem
+# Sistema de Permissões - GestaoLoja
 
 ## 📋 Visão Geral
 

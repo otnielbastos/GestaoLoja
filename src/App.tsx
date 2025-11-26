@@ -10,7 +10,6 @@ import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import Login from "@/pages/Login";
 import Index from "./pages/Index";
 import NotFound from "./pages/NotFound";
-import WebsiteHome from "./pages/website/Home";
 
 const queryClient = new QueryClient();
 
@@ -22,27 +21,21 @@ const App = () => (
       <AuthProvider>
         <BrowserRouter>
           <Routes>
-            {/* Rota pública - Site Institucional */}
-            <Route path="/" element={<WebsiteHome />} />
+            {/* Redireciona raiz para login */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
             
-            {/* Rotas do Sistema de Gestão (Admin) */}
-            <Route path="/admin">
-              {/* Redireciona /admin para /admin/login */}
-              <Route index element={<Navigate to="/admin/login" replace />} />
-              
-              {/* Rota pública de login do admin */}
-              <Route path="login" element={<Login />} />
-              
-              {/* Dashboard e outras rotas do admin protegidas */}
-              <Route 
-                path="dashboard/*" 
-                element={
-                  <ProtectedRoute>
-                    <Index />
-                  </ProtectedRoute>
-                } 
-              />
-            </Route>
+            {/* Rota pública de login */}
+            <Route path="login" element={<Login />} />
+            
+            {/* Dashboard e outras rotas protegidas */}
+            <Route 
+              path="dashboard/*" 
+              element={
+                <ProtectedRoute>
+                  <Index />
+                </ProtectedRoute>
+              } 
+            />
             
             {/* Catch-all para páginas não encontradas */}
             <Route path="*" element={<NotFound />} />

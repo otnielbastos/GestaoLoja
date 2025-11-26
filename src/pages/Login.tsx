@@ -34,7 +34,7 @@ const Login: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const from = (location.state as any)?.from?.pathname || '/admin/dashboard';
+  const from = (location.state as any)?.from?.pathname || '/dashboard';
 
   const {
     register,
@@ -81,7 +81,7 @@ const Login: React.FC = () => {
               <Shield className="h-6 w-6 text-primary-foreground" />
             </div>
             <div>
-              <CardTitle className="text-2xl font-bold">SiloSystem</CardTitle>
+              <CardTitle className="text-2xl font-bold">GestaoLoja</CardTitle>
               <CardDescription className="text-base">
                 Faça login para acessar o sistema
               </CardDescription>
@@ -153,7 +153,7 @@ const Login: React.FC = () => {
 
         <div className="mt-8 text-center">
           <p className="text-xs text-muted-foreground">
-            © 2024 SiloSystem. Sistema de Gestão Empresarial.
+            © 2024 GestaoLoja. Sistema de Gestão Empresarial.
           </p>
         </div>
       </div>

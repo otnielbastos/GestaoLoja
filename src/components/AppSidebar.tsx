@@ -97,7 +97,7 @@ export function AppSidebar({ activePage, setActivePage }: AppSidebarProps) {
             <Package className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h2 className="text-lg font-bold text-gray-800">SiloSystem</h2>
+            <h2 className="text-lg font-bold text-gray-800">GestaoLoja</h2>
             <p className="text-xs text-gray-600">Sistema Completo</p>
           </div>
         </div>

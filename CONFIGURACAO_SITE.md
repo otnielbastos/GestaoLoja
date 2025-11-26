@@ -10,7 +10,7 @@ Ao fazer deploy, execute `npm run build` que compilará ambos automaticamente.
 
 ## Estrutura do Projeto
 
-O projeto Silo possui duas aplicações principais:
+O projeto GestaoLoja é um sistema de gestão de loja.
 
 ### 1. **Site Institucional** (Pasta `Site/`)
 - **Porta**: 8080

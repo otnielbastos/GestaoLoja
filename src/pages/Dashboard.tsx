@@ -162,7 +162,7 @@ const DashboardLayout: React.FC = () => {
         <div className="flex items-center justify-between h-16 px-6 border-b">
           <div className="flex items-center space-x-2">
             <Shield className="h-8 w-8 text-primary" />
-            <span className="text-xl font-bold">SiloSystem</span>
+            <span className="text-xl font-bold">GestaoLoja</span>
           </div>
           <Button
             variant="ghost"
