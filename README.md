@@ -2,6 +2,22 @@
 
 Sistema de gestão completo para lojas, com controle de produtos, estoque, vendas e muito mais.
 
+## 📚 Documentação Completa
+
+Para uma análise detalhada de todas as telas, funcionalidades e regras de negócio, consulte:
+- **[Análise Completa do Projeto](./docs/ANALISE_COMPLETA_PROJETO.md)** - Documento completo com descrição de todas as telas e regras
+
+## 🎯 Funcionalidades Principais
+
+- ✅ **Gestão de Produtos**: Cadastro completo com imagens, tipos, categorias e controle de estoque separado
+- ✅ **Gestão de Pedidos**: Dois tipos (Pronta Entrega/Encomenda) com fluxo completo de status
+- ✅ **Gestão de Clientes**: Base completa com histórico de compras e estatísticas
+- ✅ **Controle de Estoque**: Movimentações manuais e automáticas com rastreabilidade
+- ✅ **Gestão de Entregas**: Controle de rotas e status de entrega
+- ✅ **Relatórios Analíticos**: Dashboards com gráficos, KPIs e exportação
+- ✅ **Gestão de Usuários**: Sistema completo com perfis e permissões granulares
+- ✅ **Segurança**: Autenticação robusta, auditoria completa e controle de acesso
+
 ## Requisitos
 
 - Node.js & npm - [instale com nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
@@ -47,56 +63,68 @@ npm install
 
 ## Como Executar o Projeto
 
-É necessário manter dois terminais abertos, um para o frontend e outro para o backend:
+### Terminal 1 - Supabase (se usando local)
+```sh
+# Iniciar Supabase local
+npx supabase start
+```
 
-### Terminal 1 - Frontend
+### Terminal 2 - Frontend
 ```sh
 # Na pasta raiz do projeto
 npm run dev
 ```
-Isso iniciará o servidor de desenvolvimento do frontend na porta 8080.
-
-### Terminal 2 - Backend
-```sh
-# Na pasta server
-cd server
-node server.js
-```
-Isso iniciará o servidor backend na porta 3001.
+Isso iniciará o servidor de desenvolvimento do frontend (geralmente na porta 5173 ou 8080).
 
 ## Estrutura do Projeto
 
-- `src/` - Código fonte do frontend (React)
-- `server/` - Código fonte do backend (Node.js/Express)
-  - `config/` - Configurações do banco de dados
-  - `controllers/` - Controladores da API
-  - `routes/` - Rotas da API
+- `src/` - Código fonte do frontend (React + TypeScript)
+  - `components/` - Componentes React
+  - `pages/` - Páginas do sistema
+  - `services/` - Serviços de integração com Supabase
+  - `hooks/` - Custom hooks
+  - `contexts/` - Contextos React (Auth, Navigation)
+  - `types/` - Definições TypeScript
+- `docs/` - Documentação do projeto
+  - `ANALISE_COMPLETA_PROJETO.md` - Análise detalhada de todas as telas e regras
+  - `regras/` - Documentação de regras de negócio
+  - `implementacao/` - Guias de implementação
+- `BancoDados/` - Scripts SQL e migrações
+- `supabase/` - Configurações do Supabase
 
 ## Tecnologias Utilizadas
 
-Frontend:
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### Frontend
+- **React** 18.3.1 com TypeScript
+- **Vite** 5.4.1 (build tool)
+- **React Router DOM** 6.26.2 (roteamento)
+- **shadcn-ui** (componentes UI baseados em Radix UI)
+- **Tailwind CSS** 3.4.11 (estilização)
+- **React Query** 5.80.2 (gerenciamento de estado)
+- **React Hook Form** + **Zod** (formulários e validação)
+- **Recharts** 2.12.7 (gráficos)
+- **Sonner** 1.5.0 (notificações)
 
-Backend:
-- Node.js
-- Express
-- MySQL
-- CORS
+### Backend
+- **Supabase** (PostgreSQL como banco de dados)
+- **Supabase Auth** (autenticação)
+- **Supabase Storage** (armazenamento de imagens)
+- **Supabase REST API** + **RPC Functions** (API)
 
 ## Importante!
 
 Para o funcionamento correto do sistema, certifique-se de que:
 
-1. O MySQL está rodando no XAMPP
-2. O servidor backend está rodando (`node server.js`)
-3. O servidor frontend está rodando (`npm run dev`)
-4. O banco de dados foi criado e as tabelas foram importadas
+1. O Supabase está configurado (local ou cloud)
+2. As variáveis de ambiente estão configuradas (`.env.local`)
+3. As migrations foram executadas (`npx supabase db reset`)
+4. O servidor frontend está rodando (`npm run dev`)
 
-Se encontrar o erro "Network Error", verifique se todos os serviços acima estão funcionando corretamente.
+Se encontrar erros, verifique:
+- Configuração das variáveis de ambiente
+- Conexão com o Supabase
+- Execução das migrations
+- Console do navegador para erros específicos
 
 ## Como Contribuir
 
