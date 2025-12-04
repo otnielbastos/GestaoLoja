@@ -18,13 +18,84 @@ export const usePermissions = () => {
 
       // Usar as permissões reais do usuário vindas do banco
       if (user.permissoes && typeof user.permissoes === 'object') {
-        // Converter as permissões do formato do banco para o formato esperado
-        const realPermissions: PermissionSet = {
-          pages: (user.permissoes.pages || []) as PagePermission[],
-          actions: (user.permissoes.actions || {}) as Record<PagePermission, ActionPermission[]>
+        // Verificar se está no formato novo (com pages e actions)
+        if (user.permissoes.pages && user.permissoes.actions) {
+          const realPermissions: PermissionSet = {
+            pages: (user.permissoes.pages || []) as PagePermission[],
+            actions: (user.permissoes.actions || {}) as Record<PagePermission, ActionPermission[]>
+          };
+          
+          setUserPermissions(realPermissions);
+          setLoading(false);
+          return;
+        }
+        
+        // Converter do formato antigo para o novo formato
+        // Formato antigo: { "produtos": ["criar", "listar", ...], ... }
+        // Formato novo: { pages: [...], actions: { produtos: [...], ... } }
+        const oldFormat = user.permissoes as Record<string, string[]>;
+        const pages: PagePermission[] = [];
+        const actions: Record<PagePermission, ActionPermission[]> = {} as Record<PagePermission, ActionPermission[]>;
+        
+        // Mapeamento de recursos antigos para páginas novas
+        const resourceToPage: Record<string, PagePermission> = {
+          'produtos': 'produtos',
+          'pedidos': 'pedidos',
+          'clientes': 'clientes',
+          'estoque': 'estoque',
+          'entregas': 'entregas',
+          'relatorios': 'relatorios',
+          'usuarios': 'usuarios',
         };
         
-        setUserPermissions(realPermissions);
+        // Mapeamento de ações antigas para novas
+        const actionMapping: Record<string, ActionPermission> = {
+          'criar': 'criar',
+          'listar': 'visualizar',
+          'editar': 'editar',
+          'excluir': 'excluir',
+        };
+        
+        // Sempre adicionar dashboard primeiro
+        pages.push('dashboard');
+        actions.dashboard = ['visualizar'];
+        
+        // Converter cada recurso
+        Object.keys(oldFormat).forEach(resource => {
+          const page = resourceToPage[resource.toLowerCase()];
+          if (page && !pages.includes(page)) {
+            pages.push(page);
+            
+            // Converter ações
+            const oldActions = oldFormat[resource] || [];
+            const newActions: ActionPermission[] = [];
+            
+            oldActions.forEach(oldAction => {
+              const actionLower = oldAction.toLowerCase();
+              const mappedAction = actionMapping[actionLower];
+              if (mappedAction && !newActions.includes(mappedAction)) {
+                newActions.push(mappedAction);
+              }
+            });
+            
+            // Adicionar visualizar se tiver outras ações
+            if (newActions.length > 0 && !newActions.includes('visualizar')) {
+              newActions.unshift('visualizar');
+            }
+            
+            // Se não tiver ações convertidas, adicionar visualizar como padrão
+            actions[page] = newActions.length > 0 ? newActions : ['visualizar'];
+          }
+        });
+        
+        const convertedPermissions: PermissionSet = {
+          pages,
+          actions
+        };
+        
+        console.log('✅ Permissões convertidas do formato antigo para novo:', convertedPermissions);
+        
+        setUserPermissions(convertedPermissions);
         setLoading(false);
         return;
       }
