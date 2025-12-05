@@ -505,12 +505,56 @@ export const relatoriosService = {
   },
 
   // Buscar produtos mais vendidos
-  async obterTopProdutos(): Promise<TopProduto[]> {
+  async obterTopProdutos(periodo: string = '30d', dataInicio?: string, dataFim?: string): Promise<TopProduto[]> {
     try {
-      // Primeiro, tentar uma consulta simples sem relacionamentos
-      const { data: itensPedidos, error } = await supabase
+      // Obter usuário atual
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+      
+      const hoje = new Date();
+      let inicioPeriodo: Date;
+      let fimPeriodo: Date = hoje;
+      
+      // Se for período personalizado, usar as datas fornecidas
+      if (periodo === 'custom' && dataInicio && dataFim) {
+        inicioPeriodo = new Date(dataInicio);
+        fimPeriodo = new Date(dataFim);
+        fimPeriodo.setHours(23, 59, 59, 999);
+      } else {
+        // Calcular período baseado no parâmetro
+        switch (periodo) {
+          case '7d':
+            inicioPeriodo = new Date(hoje);
+            inicioPeriodo.setDate(hoje.getDate() - 7);
+            break;
+          case 'month':
+            inicioPeriodo = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            break;
+          default: // 30d
+            inicioPeriodo = new Date(hoje);
+            inicioPeriodo.setDate(hoje.getDate() - 30);
+        }
+      }
+      
+      // Buscar itens de pedidos com filtro de data
+      let query = supabase
         .from('itens_pedido')
-        .select('*');
+        .select(`
+          quantidade,
+          subtotal,
+          produto_id,
+          pedido:pedidos!inner(data_pedido, status, criado_por)
+        `)
+        .gte('pedido.data_pedido', inicioPeriodo.toISOString())
+        .lte('pedido.data_pedido', fimPeriodo.toISOString())
+        .in('pedido.status', ['entregue', 'concluido', 'em_entrega', 'pronto', 'em_preparo', 'aprovado']);
+      
+      // REGRA DE NEGÓCIO: Vendedor só vê dados dos seus pedidos
+      if (isVendedor && user?.id) {
+        query = query.eq('pedido.criado_por', user.id);
+      }
+      
+      const { data: itensPedidos, error } = await query;
       
       if (error) {
         console.error('Erro ao buscar itens de pedidos:', error);
@@ -518,15 +562,10 @@ export const relatoriosService = {
       }
       
       if (!itensPedidos || itensPedidos.length === 0) {
-        return [
-          { name: "Pão Francês", sold: 156, revenue: "R$ 109,20" },
-          { name: "Refrigerante 2L", sold: 45, revenue: "R$ 400,50" },
-          { name: "Leite 1L", sold: 38, revenue: "R$ 220,40" },
-          { name: "Açúcar 1kg", sold: 28, revenue: "R$ 126,00" },
-        ];
+        return [];
       }
       
-      // Se conseguiu buscar os dados, precisa fazer joins manuais
+      // Buscar nomes dos produtos
       const { data: produtos, error: produtosError } = await supabase
         .from('produtos')
         .select('id, nome');
@@ -539,7 +578,7 @@ export const relatoriosService = {
       // Agrupar por produto_id
       const produtosMap = new Map();
       
-      itensPedidos.forEach(item => {
+      itensPedidos.forEach((item: any) => {
         const produto = produtos?.find(p => p.id === item.produto_id);
         const nomeProduto = produto?.nome || `Produto ID ${item.produto_id}`;
         
@@ -565,15 +604,7 @@ export const relatoriosService = {
           revenue: `R$ ${produto.revenue.toFixed(2).replace('.', ',')}`
         }));
       
-      // Se não houver produtos, retornar dados de exemplo
-      if (topProdutos.length === 0) {
-        return [
-          { name: "Pão Francês", sold: 156, revenue: "R$ 109,20" },
-          { name: "Refrigerante 2L", sold: 45, revenue: "R$ 400,50" },
-          { name: "Leite 1L", sold: 38, revenue: "R$ 220,40" },
-          { name: "Açúcar 1kg", sold: 28, revenue: "R$ 126,00" },
-        ];
-      }
+      console.log(`📊 Top Produtos - Período: ${periodo}, Produtos encontrados: ${topProdutos.length}`);
       
       return topProdutos;
       
@@ -714,20 +745,42 @@ export const relatoriosService = {
   },
 
   // Buscar pedidos por bairro
-  async obterPedidosPorBairro(): Promise<PedidoPorBairro[]> {
+  async obterPedidosPorBairro(periodo: string = '30d', dataInicio?: string, dataFim?: string): Promise<PedidoPorBairro[]> {
     try {
       // Obter usuário atual
       const user = authService.getCurrentUser();
       const isVendedor = user?.perfil === 'Vendedor';
       
-      // Buscar pedidos dos últimos 30 dias com endereço de entrega
-      const ultimosMesDias = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const hoje = new Date();
+      let inicioPeriodo: Date;
+      let fimPeriodo: Date = hoje;
+      
+      // Se for período personalizado, usar as datas fornecidas
+      if (periodo === 'custom' && dataInicio && dataFim) {
+        inicioPeriodo = new Date(dataInicio);
+        fimPeriodo = new Date(dataFim);
+        fimPeriodo.setHours(23, 59, 59, 999);
+      } else {
+        // Calcular período baseado no parâmetro
+        switch (periodo) {
+          case '7d':
+            inicioPeriodo = new Date(hoje);
+            inicioPeriodo.setDate(hoje.getDate() - 7);
+            break;
+          case 'month':
+            inicioPeriodo = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            break;
+          default: // 30d
+            inicioPeriodo = new Date(hoje);
+            inicioPeriodo.setDate(hoje.getDate() - 30);
+        }
+      }
       
       const contadores = new Map<string, number>();
       
       // 1. Tentar buscar da tabela entregas (fonte mais confiável)
       try {
-        const bairrosDeEntregas = await buscarBairrosDeEntregas(ultimosMesDias, isVendedor, user?.id);
+        const bairrosDeEntregas = await buscarBairrosDeEntregas(inicioPeriodo, isVendedor, user?.id);
         bairrosDeEntregas.forEach(item => {
           contadores.set(item.name, (contadores.get(item.name) || 0) + item.orders);
         });
@@ -749,7 +802,8 @@ export const relatoriosService = {
               criado_por,
               cliente:clientes!inner(endereco_bairro)
             `)
-            .gte('data_pedido', ultimosMesDias.toISOString());
+            .gte('data_pedido', inicioPeriodo.toISOString())
+            .lte('data_pedido', fimPeriodo.toISOString());
           
           // REGRA DE NEGÓCIO: Vendedor só vê seus dados
           if (isVendedor && user?.id) {
@@ -775,6 +829,7 @@ export const relatoriosService = {
       
       // Se não encontrou nenhum bairro, retornar vazio
       if (contadores.size === 0) {
+        console.log(`📊 Pedidos por Bairro - Período: ${periodo}, Nenhum bairro encontrado`);
         return [];
       }
       
@@ -790,6 +845,8 @@ export const relatoriosService = {
         }))
         .sort((a, b) => b.orders - a.orders)
         .slice(0, 4); // Top 4 bairros
+      
+      console.log(`📊 Pedidos por Bairro - Período: ${periodo}, Bairros encontrados: ${pedidosPorBairro.length}`);
       
       return pedidosPorBairro;
       

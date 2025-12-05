@@ -55,9 +55,9 @@ function Reports() {
       ] = await Promise.all([
         relatoriosService.obterDashboard(selectedPeriod, dataInicio, dataFim),
         relatoriosService.obterVendasPorDia(selectedPeriod, dataInicio, dataFim),
-        relatoriosService.obterTopProdutos(),
+        relatoriosService.obterTopProdutos(selectedPeriod, dataInicio, dataFim),
         relatoriosService.obterMetodosPagamento(selectedPeriod, dataInicio, dataFim),
-        relatoriosService.obterPedidosPorBairro(),
+        relatoriosService.obterPedidosPorBairro(selectedPeriod, dataInicio, dataFim),
         relatoriosService.obterRelatorioFinanceiro(selectedPeriod, dataInicio, dataFim)
       ]);
       
@@ -108,6 +108,38 @@ function Reports() {
     }).format(valor);
   };
 
+  // Função para obter o período formatado
+  const obterPeriodoFormatado = (): string => {
+    if (selectedPeriod === 'custom' && dataInicio && dataFim) {
+      const inicio = new Date(dataInicio);
+      const fim = new Date(dataFim);
+      return `${inicio.toLocaleDateString('pt-BR')} até ${fim.toLocaleDateString('pt-BR')}`;
+    }
+    
+    const hoje = new Date();
+    let inicio: Date;
+    let fim: Date = hoje;
+    
+    switch (selectedPeriod) {
+      case '7d':
+        inicio = new Date(hoje);
+        inicio.setDate(hoje.getDate() - 7);
+        break;
+      case '30d':
+        inicio = new Date(hoje);
+        inicio.setDate(hoje.getDate() - 30);
+        break;
+      case 'month':
+        inicio = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+        break;
+      default:
+        inicio = new Date(hoje);
+        inicio.setDate(hoje.getDate() - 7);
+    }
+    
+    return `${inicio.toLocaleDateString('pt-BR')} até ${fim.toLocaleDateString('pt-BR')}`;
+  };
+
   if (loading) {
     return (
       <div className="space-y-6 animate-fade-in">
@@ -137,12 +169,18 @@ function Reports() {
   return (
     <div className="space-y-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
+        <div className="flex-1">
           <h2 className="text-3xl font-bold text-gray-800 flex items-center gap-2">
             <BarChart3 className="w-8 h-8" />
             Relatórios
           </h2>
-          <p className="text-gray-600">Análise completa do desempenho da loja - Teste</p>
+          <p className="text-gray-600">Análise completa do desempenho da loja</p>
+          {/* Indicador de Período */}
+          <div className="mt-2 inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-purple-50 border border-blue-200 rounded-lg">
+            <Calendar className="w-4 h-4 text-blue-600" />
+            <span className="text-sm font-medium text-gray-700">Período:</span>
+            <span className="text-sm font-bold text-blue-700">{obterPeriodoFormatado()}</span>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button variant="outline">
