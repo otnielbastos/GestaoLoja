@@ -411,75 +411,109 @@ export const relatoriosService = {
         }
       });
       
-      // Obter todas as datas com pedidos e ordenar
-      const datasComPedidos = Array.from(pedidosPorData.keys())
-        .map(key => new Date(key + 'T00:00:00'))
-        .sort((a, b) => a.getTime() - b.getTime());
+      // Calcular duração do período em dias
+      const duracaoDias = Math.ceil((fimPeriodo.getTime() - inicioPeriodo.getTime()) / (1000 * 60 * 60 * 24));
       
-      console.log('📊 Datas com pedidos encontradas:', datasComPedidos.map(d => d.toLocaleDateString('pt-BR')));
+      console.log(`📊 Duração do período: ${duracaoDias} dias`);
+      console.log('📊 Datas com pedidos encontradas:', Array.from(pedidosPorData.keys()).sort());
       
-      // Sempre mostrar os últimos 7 dias do período (mesmo que não tenham pedidos)
-      // Mas se houver pedidos em dias anteriores, incluí-los também
       const vendasPorDia: VendasPorDia[] = [];
       
-      // Determinar a data mais antiga com pedidos e a mais recente
-      const dataMaisAntiga = datasComPedidos.length > 0 ? datasComPedidos[0] : null;
-      const dataMaisRecente = datasComPedidos.length > 0 ? datasComPedidos[datasComPedidos.length - 1] : null;
+      // Para períodos longos (mais de 60 dias), agrupar por semana
+      // Para períodos médios (15-60 dias), mostrar todos os dias
+      // Para períodos curtos (menos de 15 dias), mostrar todos os dias
       
-      // Calcular os últimos 7 dias a partir de hoje
-      const ultimos7Dias: Date[] = [];
-      for (let i = 6; i >= 0; i--) {
-        const dataAtual = new Date(hoje);
-        dataAtual.setDate(hoje.getDate() - i);
-        dataAtual.setHours(0, 0, 0, 0);
-        ultimos7Dias.push(dataAtual);
-      }
-      
-      // Se houver pedidos em dias anteriores aos últimos 7 dias, incluí-los
-      // Mas limitar a no máximo 7 dias no total
-      const todasAsDatas = new Set<string>();
-      
-      // Adicionar últimos 7 dias
-      ultimos7Dias.forEach(d => todasAsDatas.add(d.toISOString().split('T')[0]));
-      
-      // Adicionar dias com pedidos que estejam dentro do período mas fora dos últimos 7 dias
-      if (dataMaisAntiga && dataMaisAntiga < ultimos7Dias[0]) {
-        // Se o pedido mais antigo está antes dos últimos 7 dias, incluir dias com pedidos
-        datasComPedidos.forEach(d => {
-          if (d >= inicioPeriodo && d <= hoje) {
-            todasAsDatas.add(d.toISOString().split('T')[0]);
+      if (duracaoDias > 60) {
+        // Agrupar por semana para períodos muito longos
+        const vendasPorSemana = new Map<string, { vendas: number; pedidos: number; semanaInicio: Date }>();
+        
+        pedidosPorData.forEach((dados, dataKey) => {
+          const data = new Date(dataKey + 'T00:00:00');
+          if (data < inicioPeriodo || data > fimPeriodo) return;
+          
+          // Calcular início da semana (domingo)
+          const inicioSemana = new Date(data);
+          const diaSemana = inicioSemana.getDay();
+          inicioSemana.setDate(inicioSemana.getDate() - diaSemana);
+          inicioSemana.setHours(0, 0, 0, 0);
+          
+          const semanaKey = inicioSemana.toISOString().split('T')[0];
+          
+          if (vendasPorSemana.has(semanaKey)) {
+            const existing = vendasPorSemana.get(semanaKey)!;
+            existing.vendas += dados.vendas;
+            existing.pedidos += dados.pedidos;
+          } else {
+            vendasPorSemana.set(semanaKey, {
+              vendas: dados.vendas,
+              pedidos: dados.pedidos,
+              semanaInicio: inicioSemana
+            });
           }
         });
-      }
-      
-      // Converter para array, ordenar e pegar os últimos 7
-      const datasOrdenadas = Array.from(todasAsDatas)
-        .map(key => new Date(key + 'T00:00:00'))
-        .filter(d => d >= inicioPeriodo && d <= fimPeriodo)
-        .sort((a, b) => a.getTime() - b.getTime())
-        .slice(-7); // Pegar apenas os últimos 7 dias
-      
-      console.log('📊 Datas que serão exibidas:', datasOrdenadas.map(d => d.toLocaleDateString('pt-BR')));
-      
-      // Processar cada dia
-      datasOrdenadas.forEach(dataAtual => {
-        const dataKey = dataAtual.toISOString().split('T')[0];
-        const dados = pedidosPorData.get(dataKey) || { vendas: 0, pedidos: 0 };
         
-        const diaSemana = dataAtual.toLocaleDateString('pt-BR', { weekday: 'short' });
-        const diaMes = dataAtual.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
-        const diaLabel = (diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1, 3)) + ' ' + diaMes;
-        
-        if (dados.pedidos > 0) {
-          console.log(`📊 Dia ${diaLabel}: ${dados.pedidos} pedidos, R$ ${dados.vendas.toFixed(2)}`);
+        // Criar array de todas as semanas do período
+        const semanas: Date[] = [];
+        let dataAtual = new Date(inicioPeriodo);
+        while (dataAtual <= fimPeriodo) {
+          const inicioSemana = new Date(dataAtual);
+          const diaSemana = inicioSemana.getDay();
+          inicioSemana.setDate(inicioSemana.getDate() - diaSemana);
+          inicioSemana.setHours(0, 0, 0, 0);
+          
+          if (!semanas.find(s => s.getTime() === inicioSemana.getTime())) {
+            semanas.push(new Date(inicioSemana));
+          }
+          
+          dataAtual.setDate(dataAtual.getDate() + 7);
         }
         
-        vendasPorDia.push({
-          day: diaLabel,
-          vendas: Math.round(dados.vendas),
-          pedidos: dados.pedidos
+        semanas.sort((a, b) => a.getTime() - b.getTime());
+        
+        semanas.forEach(semanaInicio => {
+          const semanaKey = semanaInicio.toISOString().split('T')[0];
+          const dados = vendasPorSemana.get(semanaKey) || { vendas: 0, pedidos: 0, semanaInicio };
+          
+          const semanaFim = new Date(semanaInicio);
+          semanaFim.setDate(semanaFim.getDate() + 6);
+          
+          const label = `${semanaInicio.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })} - ${semanaFim.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}`;
+          
+          vendasPorDia.push({
+            day: label,
+            vendas: Math.round(dados.vendas),
+            pedidos: dados.pedidos
+          });
         });
-      });
+      } else {
+        // Mostrar todos os dias do período
+        const todasAsDatas: Date[] = [];
+        let dataAtual = new Date(inicioPeriodo);
+        
+        while (dataAtual <= fimPeriodo) {
+          todasAsDatas.push(new Date(dataAtual));
+          dataAtual.setDate(dataAtual.getDate() + 1);
+        }
+        
+        todasAsDatas.forEach(dataAtual => {
+          const dataKey = dataAtual.toISOString().split('T')[0];
+          const dados = pedidosPorData.get(dataKey) || { vendas: 0, pedidos: 0 };
+          
+          const diaSemana = dataAtual.toLocaleDateString('pt-BR', { weekday: 'short' });
+          const diaMes = dataAtual.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+          const diaLabel = (diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1, 3)) + ' ' + diaMes;
+          
+          vendasPorDia.push({
+            day: diaLabel,
+            vendas: Math.round(dados.vendas),
+            pedidos: dados.pedidos
+          });
+        });
+      }
+      
+      console.log('📊 Total de pontos no gráfico:', vendasPorDia.length);
+      console.log('📊 Primeiro ponto:', vendasPorDia[0]);
+      console.log('📊 Último ponto:', vendasPorDia[vendasPorDia.length - 1]);
       
       console.log('📊 Vendas por dia processadas (últimos 7 dias):', vendasPorDia);
       console.log('📊 Detalhes dos dias:', vendasPorDia.map(v => `${v.day}: ${v.pedidos} pedidos, R$ ${v.vendas}`));

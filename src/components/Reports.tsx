@@ -3,7 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BarChart3, TrendingUp, DollarSign, Calendar, Download, Filter, Package, CheckCircle, Clock, XCircle } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell, Tooltip } from "recharts";
 import { relatoriosService } from "@/services/supabaseRelatorios";
 
 function Reports() {
@@ -479,15 +479,29 @@ function Reports() {
         {/* Sales Chart */}
         <Card className="border-0 shadow-md">
           <CardHeader>
-            <CardTitle>Vendas por Dia</CardTitle>
-            <CardDescription>Receita e número de pedidos dos últimos 7 dias</CardDescription>
+            <CardTitle>Vendas por {salesData.length > 0 && salesData[0].day.includes(' - ') ? 'Semana' : 'Dia'}</CardTitle>
+            <CardDescription>
+              {selectedPeriod === 'custom' && dataInicio && dataFim
+                ? `Receita e número de pedidos do período selecionado (${salesData.length} ${salesData.length > 0 && salesData[0].day.includes(' - ') ? 'semanas' : 'dias'})`
+                : 'Receita e número de pedidos do período selecionado'}
+            </CardDescription>
           </CardHeader>
           <CardContent>
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={salesData}>
+            <ResponsiveContainer width="100%" height={salesData.length > 30 ? 500 : 300}>
+              <BarChart data={salesData} margin={{ top: 5, right: 20, left: 0, bottom: salesData.length > 15 ? 60 : 20 }}>
                 <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="day" />
+                <XAxis 
+                  dataKey="day" 
+                  angle={salesData.length > 15 ? -45 : 0}
+                  textAnchor={salesData.length > 15 ? 'end' : 'middle'}
+                  height={salesData.length > 15 ? 80 : 30}
+                  interval={salesData.length > 30 ? Math.floor(salesData.length / 20) : 0}
+                />
                 <YAxis />
+                <Tooltip 
+                  formatter={(value: any) => formatarMoeda(value)}
+                  labelFormatter={(label) => `Período: ${label}`}
+                />
                 <Bar dataKey="vendas" fill="#3B82F6" radius={4} />
               </BarChart>
             </ResponsiveContainer>
