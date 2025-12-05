@@ -11,13 +11,14 @@ import { Customers } from "@/components/Customers";
 import { Stock } from "@/components/Stock";
 import { Deliveries } from "@/components/Deliveries";
 import Reports from "@/components/Reports";
+import ProductSalesReport from "@/components/ProductSalesReport";
 import { Users } from "@/components/Users";
 import Profile from "@/components/Profile";
 import { NavigationProvider } from "@/contexts/NavigationContext";
 import { ProtectedComponent } from "@/components/ProtectedComponent";
 import { PagePermission } from "@/types/permissions";
 
-export type ActivePage = 'dashboard' | 'products' | 'orders' | 'customers' | 'stock' | 'deliveries' | 'reports' | 'users' | 'profile';
+export type ActivePage = 'dashboard' | 'products' | 'orders' | 'customers' | 'stock' | 'deliveries' | 'reports' | 'product-sales' | 'users' | 'profile';
 
 const Index = () => {
   const [activePage, setActivePage] = useState<ActivePage>('dashboard');
@@ -31,6 +32,7 @@ const Index = () => {
       'stock': 'estoque',
       'deliveries': 'entregas',
       'reports': 'relatorios',
+      'product-sales': 'relatorios', // Usa a mesma permissão de relatórios
       'users': 'usuarios',
       'profile': 'dashboard' // Profile usa a mesma permissão do dashboard (sempre acessível)
     };
@@ -56,6 +58,8 @@ const Index = () => {
           return <Deliveries />;
         case 'reports':
           return <Reports />;
+        case 'product-sales':
+          return <ProductSalesReport />;
         case 'users':
           return <Users />;
         case 'profile':

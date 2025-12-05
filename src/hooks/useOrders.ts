@@ -36,6 +36,10 @@ export interface Order {
   notes?: string;
   criado_por?: number; // ID do usuário que criou o pedido
   vendedor_nome?: string; // Nome do vendedor
+  valor_desconto?: number; // Valor do desconto em R$
+  percentual_desconto?: number; // Percentual do desconto
+  tipo_desconto?: "valor" | "percentual" | null; // Tipo de desconto aplicado
+  valor_subtotal?: number; // Valor total antes do desconto
 }
 
 // Interface para criar pedido
@@ -108,6 +112,10 @@ interface BackendOrder {
   horario_entrega?: string;
   observacoes_producao?: string;
   valor_total: number;
+  valor_subtotal?: number;
+  valor_desconto?: number;
+  percentual_desconto?: number;
+  tipo_desconto?: string | null;
   forma_pagamento: string;
   status_pagamento?: string;
   valor_pago?: number;
@@ -184,6 +192,10 @@ const mapOrderFromBackend = (backendOrder: BackendOrder): Order => {
     customerName: backendOrder.cliente?.nome || '',
     customerPhone: backendOrder.cliente?.telefone || '',
     total: parseFloat(backendOrder.valor_total?.toString() || '0'),
+    valor_subtotal: parseFloat(backendOrder.valor_subtotal?.toString() || backendOrder.valor_total?.toString() || '0'),
+    valor_desconto: parseFloat(backendOrder.valor_desconto?.toString() || '0'),
+    percentual_desconto: parseFloat(backendOrder.percentual_desconto?.toString() || '0'),
+    tipo_desconto: (backendOrder.tipo_desconto as "valor" | "percentual" | null) || null,
     status: mapStatusFromBackend(backendOrder.status),
     tipo: (backendOrder.tipo as "pronta_entrega" | "encomenda") || "pronta_entrega",
     data_entrega_prevista: backendOrder.data_entrega_prevista || null,
@@ -325,6 +337,9 @@ export function useOrders() {
       }
       if (updates.horario_entrega !== undefined) {
         backendData.horario_entrega = updates.horario_entrega;
+      }
+      if (updates.paymentMethod !== undefined) {
+        backendData.forma_pagamento = updates.paymentMethod;
       }
       if (updates.observacoes_producao !== undefined) {
         backendData.observacoes_producao = updates.observacoes_producao;
@@ -529,6 +544,9 @@ export function useOrders() {
     status_pagamento?: "pendente" | "pago" | "parcial";
     valor_pago?: number;
     observacoes_pagamento?: string;
+    valor_desconto?: number;
+    percentual_desconto?: number;
+    tipo_desconto?: "valor" | "percentual" | null;
   }) => {
     try {
       // Buscar ID numérico real do pedido
@@ -542,7 +560,10 @@ export function useOrders() {
       await api.pedidos.atualizarPagamento(pedido.id, {
         status_pagamento: paymentData.status_pagamento || 'pendente',
         valor_pago: paymentData.valor_pago || 0,
-        observacoes_pagamento: paymentData.observacoes_pagamento
+        observacoes_pagamento: paymentData.observacoes_pagamento,
+        valor_desconto: paymentData.valor_desconto,
+        percentual_desconto: paymentData.percentual_desconto,
+        tipo_desconto: paymentData.tipo_desconto
       });
       
       await loadOrders(); // Recarregar lista

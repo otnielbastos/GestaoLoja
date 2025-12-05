@@ -203,8 +203,26 @@ export function Orders() {
   };
 
   const handlePayment = (id: string) => {
-    setPaymentOrder(id);
-    setIsPaymentOpen(true);
+    try {
+      const order = getOrder(id);
+      if (!order) {
+        toast({
+          title: "Erro",
+          description: "Pedido não encontrado. Por favor, recarregue a página.",
+          variant: "destructive",
+        });
+        return;
+      }
+      setPaymentOrder(id);
+      setIsPaymentOpen(true);
+    } catch (error: any) {
+      console.error('Erro ao abrir modal de pagamento:', error);
+      toast({
+        title: "Erro",
+        description: error.message || "Ocorreu um erro ao abrir o modal de pagamento.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handlePaymentSubmit = async (paymentData: any) => {

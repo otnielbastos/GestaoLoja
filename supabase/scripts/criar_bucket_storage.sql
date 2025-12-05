@@ -35,3 +35,6 @@ ON storage.objects FOR DELETE
 TO public
 USING (bucket_id = 'uploads');
 
+
+
+

@@ -34,6 +34,7 @@ interface AtualizarPedidoData {
   data_pedido?: string;
   data_entrega_prevista?: string;
   horario_entrega?: string;
+  forma_pagamento?: string;
   observacoes?: string;
   observacoes_producao?: string;
   itens?: Array<{
@@ -50,6 +51,9 @@ interface AtualizarPagamentoData {
   status_pagamento: 'pendente' | 'pago' | 'parcial';
   valor_pago: number;
   observacoes_pagamento?: string;
+  valor_desconto?: number;
+  percentual_desconto?: number;
+  tipo_desconto?: 'valor' | 'percentual' | null;
 }
 
 // Função para normalizar status
@@ -396,6 +400,7 @@ export const pedidosService = {
       const numeroPedido = await gerarProximoNumero();
 
       // Criar pedido
+      // Na criação, valor_subtotal e valor_total são iguais (desconto é aplicado depois no pagamento)
       const { data: novoPedido, error: pedidoError } = await supabase
         .from('pedidos')
         .insert({
@@ -406,6 +411,7 @@ export const pedidosService = {
           data_entrega_prevista,
           horario_entrega,
           valor_total: valorTotal,
+          valor_subtotal: valorTotal, // Subtotal igual ao total na criação
           forma_pagamento,
           observacoes,
           observacoes_producao,
@@ -662,7 +668,7 @@ export const pedidosService = {
   // Atualizar pagamento
   async atualizarPagamento(id: number, data: AtualizarPagamentoData) {
     try {
-      const { status_pagamento, valor_pago, observacoes_pagamento } = data;
+      const { status_pagamento, valor_pago, observacoes_pagamento, valor_desconto, percentual_desconto, tipo_desconto } = data;
 
       // Buscar pedido atual para verificar status e valor total
       const { data: pedidoAtual, error: pedidoError } = await supabase
@@ -675,28 +681,105 @@ export const pedidosService = {
         throw new Error('Pedido não encontrado');
       }
 
+      // IMPORTANTE: valor_total permanece inalterado (valor original)
+      // O desconto é registrado separadamente
+      const valorOriginal = pedidoAtual.valor_total || 0;
+      
+      // Calcular desconto aplicado
+      let descontoAplicado = 0;
+      if (tipo_desconto === 'valor' && valor_desconto) {
+        descontoAplicado = valor_desconto;
+      } else if (tipo_desconto === 'percentual' && percentual_desconto) {
+        descontoAplicado = (valorOriginal * percentual_desconto) / 100;
+      }
+      
+      // Valor final a pagar (valor_total - desconto)
+      const valorFinal = valorOriginal - descontoAplicado;
+
+      // Preparar dados básicos de atualização
+      // IMPORTANTE: NÃO alterar valor_total - ele mantém o valor original
       const updateData: any = {
         status_pagamento,
         valor_pago,
-        observacoes_pagamento
+        observacoes_pagamento,
+        // valor_total permanece inalterado
       };
+
+      // Verificar se os campos de desconto existem na tabela
+      // Se o pedido atual não tiver esses campos, não tentar atualizá-los
+      const camposDescontoExistem = pedidoAtual.hasOwnProperty('valor_desconto') || 
+                                     pedidoAtual.hasOwnProperty('valor_subtotal');
+      
+      if (camposDescontoExistem) {
+        updateData.valor_desconto = tipo_desconto === 'valor' ? (valor_desconto || 0) : 0;
+        updateData.percentual_desconto = tipo_desconto === 'percentual' ? (percentual_desconto || 0) : 0;
+        updateData.tipo_desconto = tipo_desconto || null;
+        // valor_subtotal pode ser usado para armazenar o valor original se necessário
+        // Mas valor_total já é o valor original, então podemos não precisar de valor_subtotal
+      }
 
       if (status_pagamento === 'pago') {
         updateData.data_pagamento = new Date().toISOString();
       }
 
       // REGRA 3: Conclusão automática quando pagamento integral + status entregue
+      // Usar valorFinal (valor_total - desconto) para verificar pagamento integral
       if (status_pagamento === 'pago' && 
-          valor_pago >= pedidoAtual.valor_total && 
+          valor_pago >= valorFinal && 
           pedidoAtual.status === 'entregue') {
         console.log(`Concluindo pedido ${id} automaticamente: pagamento integral + entregue`);
         updateData.status = 'concluido';
       }
 
-      await supabase
+      const { error: updateError } = await supabase
         .from('pedidos')
         .update(updateData)
         .eq('id', id);
+
+      // Se houver erro relacionado a campos que não existem, tentar sem os campos de desconto
+      if (updateError) {
+        console.error('Erro ao atualizar pedido:', updateError);
+        
+        if (updateError.message && (
+          updateError.message.includes('column') || 
+          updateError.message.includes('does not exist') ||
+          updateError.message.includes('unknown column') ||
+          updateError.code === '42703' // PostgreSQL error code for undefined column
+        )) {
+          console.log('Campos de desconto não existem na tabela, atualizando apenas campos básicos...');
+          
+          // Remover campos de desconto e tentar novamente
+          const updateDataBasico: any = {
+            status_pagamento,
+            valor_pago,
+            observacoes_pagamento,
+            // valor_total permanece inalterado
+          };
+          
+          if (status_pagamento === 'pago') {
+            updateDataBasico.data_pagamento = new Date().toISOString();
+          }
+          
+          // Calcular valor final para verificação
+          const valorFinalBasico = valorOriginal - descontoAplicado;
+          if (status_pagamento === 'pago' && 
+              valor_pago >= valorFinalBasico && 
+              pedidoAtual.status === 'entregue') {
+            updateDataBasico.status = 'concluido';
+          }
+
+          const { error: retryError } = await supabase
+            .from('pedidos')
+            .update(updateDataBasico)
+            .eq('id', id);
+
+          if (retryError) {
+            throw new Error(retryError.message || 'Erro ao atualizar pagamento');
+          }
+        } else {
+          throw new Error(updateError.message || 'Erro ao atualizar pagamento');
+        }
+      }
 
       return {
         success: true,

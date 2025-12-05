@@ -58,7 +58,9 @@ interface TopComprador {
 }
 
 interface RelatorioFinanceiro {
-  valor_total_pedidos: number;
+  valor_total_pedidos: number; // Valor original (antes do desconto)
+  valor_desconto_total: number; // Total de descontos aplicados
+  valor_final_pedidos: number; // Valor final a pagar (original - desconto)
   valor_pago: number;
   valor_pendente: number;
   quantidade_pedidos: number;
@@ -68,9 +70,10 @@ interface RelatorioFinanceiro {
   ticket_medio?: number;
   percentual_pago?: number;
   percentual_pendente?: number;
+  percentual_desconto_total?: number;
 }
 
-// Helper para calcular período anterior
+// Helper para calcular período anterior (baseado em dias)
 const obterPeriodoAnterior = (dias: number) => {
   const hoje = new Date();
   const inicioAtual = new Date(hoje);
@@ -87,6 +90,23 @@ const obterPeriodoAnterior = (dias: number) => {
     fim_atual: hoje.toISOString(),
     inicio_anterior: inicioAnterior.toISOString(),
     fim_anterior: fimAnterior.toISOString()
+  };
+};
+
+// Helper para calcular período do mês atual
+const obterPeriodoMesAtual = () => {
+  const hoje = new Date();
+  const primeiroDiaMes = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  
+  // Período anterior: mês passado completo
+  const primeiroDiaMesAnterior = new Date(hoje.getFullYear(), hoje.getMonth() - 1, 1);
+  const ultimoDiaMesAnterior = new Date(hoje.getFullYear(), hoje.getMonth(), 0);
+  
+  return {
+    inicio_atual: primeiroDiaMes.toISOString(),
+    fim_atual: hoje.toISOString(),
+    inicio_anterior: primeiroDiaMesAnterior.toISOString(),
+    fim_anterior: ultimoDiaMesAnterior.toISOString()
   };
 };
 
@@ -189,20 +209,20 @@ export const relatoriosService = {
   // Buscar dados do dashboard principal
   async obterDashboard(periodo: string = '7d'): Promise<RelatorioDashboard> {
     try {
-      let dias = 7;
+      let periodoCalculado;
       
       switch (periodo) {
         case '30d':
-          dias = 30;
+          periodoCalculado = obterPeriodoAnterior(30);
           break;
         case 'month':
-          dias = 30;
+          periodoCalculado = obterPeriodoMesAtual();
           break;
         default:
-          dias = 7;
+          periodoCalculado = obterPeriodoAnterior(7);
       }
       
-      const { inicio_atual, fim_atual, inicio_anterior, fim_anterior } = obterPeriodoAnterior(dias);
+      const { inicio_atual, fim_atual, inicio_anterior, fim_anterior } = periodoCalculado;
       
       // Obter usuário atual
       const user = authService.getCurrentUser();
@@ -283,22 +303,37 @@ export const relatoriosService = {
   },
 
   // Buscar vendas por dia
-  async obterVendasPorDia(): Promise<VendasPorDia[]> {
+  async obterVendasPorDia(periodo: string = '7d'): Promise<VendasPorDia[]> {
     try {
       const hoje = new Date();
-      const seteDiasAtras = new Date(hoje);
-      seteDiasAtras.setDate(hoje.getDate() - 7);
+      let inicioPeriodo: Date;
+      
+      // Calcular período baseado no parâmetro
+      switch (periodo) {
+        case '30d':
+          inicioPeriodo = new Date(hoje);
+          inicioPeriodo.setDate(hoje.getDate() - 30);
+          break;
+        case 'month':
+          inicioPeriodo = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+          break;
+        default: // 7d
+          inicioPeriodo = new Date(hoje);
+          inicioPeriodo.setDate(hoje.getDate() - 7);
+      }
       
       // Obter usuário atual
       const user = authService.getCurrentUser();
       const isVendedor = user?.perfil === 'Vendedor';
       
+      // Buscar TODOS os pedidos do período (sem filtrar por status)
+      // Incluir pedidos pagos mesmo que não estejam entregues
       let query = supabase
         .from('pedidos')
-        .select('valor_total, data_pedido')
-        .gte('data_pedido', seteDiasAtras.toISOString())
+        .select('id, valor_total, data_pedido, status, status_pagamento, forma_pagamento')
+        .gte('data_pedido', inicioPeriodo.toISOString())
         .lte('data_pedido', hoje.toISOString())
-        .in('status', ['entregue', 'concluido']);
+        .neq('status', 'cancelado'); // Apenas excluir cancelados
       
       // REGRA DE NEGÓCIO: Vendedor só vê seus dados
       if (isVendedor && user?.id) {
@@ -309,41 +344,131 @@ export const relatoriosService = {
       
       if (error) throw error;
       
-      const diasSemana = obterDiasSemana();
+      // Debug: verificar dados retornados
+      console.log(`📊 Vendas por Dia - Período: ${periodo}`);
+      console.log(`📊 Data início: ${inicioPeriodo.toISOString()}, Data fim: ${hoje.toISOString()}`);
+      console.log(`📊 Pedidos encontrados:`, pedidos?.length || 0);
+      if (pedidos && pedidos.length > 0) {
+        console.log('📊 Vendas por dia - Todos os pedidos:', pedidos.map(p => ({ 
+          id: p.id || 'N/A',
+          data: p.data_pedido, 
+          valor: p.valor_total,
+          status: p.status,
+          status_pagamento: p.status_pagamento,
+          forma_pagamento: p.forma_pagamento
+        })));
+      } else {
+        console.warn('⚠️ Nenhum pedido encontrado no período!');
+      }
+      
+      // Agrupar pedidos por dia primeiro
+      const pedidosPorData = new Map<string, { vendas: number; pedidos: number; data: Date }>();
+      
+      pedidos?.forEach(p => {
+        if (!p.data_pedido) return;
+        const dataPedido = new Date(p.data_pedido);
+        // Normalizar para apenas data (sem hora)
+        const dataNormalizada = new Date(dataPedido.getFullYear(), dataPedido.getMonth(), dataPedido.getDate());
+        const dataKey = dataNormalizada.toISOString().split('T')[0]; // YYYY-MM-DD
+        
+        if (pedidosPorData.has(dataKey)) {
+          const existing = pedidosPorData.get(dataKey)!;
+          existing.vendas += p.valor_total || 0;
+          existing.pedidos += 1;
+        } else {
+          pedidosPorData.set(dataKey, {
+            vendas: p.valor_total || 0,
+            pedidos: 1,
+            data: dataNormalizada
+          });
+        }
+      });
+      
+      // Obter todas as datas com pedidos e ordenar
+      const datasComPedidos = Array.from(pedidosPorData.keys())
+        .map(key => new Date(key + 'T00:00:00'))
+        .sort((a, b) => a.getTime() - b.getTime());
+      
+      console.log('📊 Datas com pedidos encontradas:', datasComPedidos.map(d => d.toLocaleDateString('pt-BR')));
+      
+      // Sempre mostrar os últimos 7 dias do período (mesmo que não tenham pedidos)
+      // Mas se houver pedidos em dias anteriores, incluí-los também
       const vendasPorDia: VendasPorDia[] = [];
       
-      diasSemana.forEach((dia, index) => {
+      // Determinar a data mais antiga com pedidos e a mais recente
+      const dataMaisAntiga = datasComPedidos.length > 0 ? datasComPedidos[0] : null;
+      const dataMaisRecente = datasComPedidos.length > 0 ? datasComPedidos[datasComPedidos.length - 1] : null;
+      
+      // Calcular os últimos 7 dias a partir de hoje
+      const ultimos7Dias: Date[] = [];
+      for (let i = 6; i >= 0; i--) {
         const dataAtual = new Date(hoje);
-        dataAtual.setDate(hoje.getDate() - (6 - index));
+        dataAtual.setDate(hoje.getDate() - i);
+        dataAtual.setHours(0, 0, 0, 0);
+        ultimos7Dias.push(dataAtual);
+      }
+      
+      // Se houver pedidos em dias anteriores aos últimos 7 dias, incluí-los
+      // Mas limitar a no máximo 7 dias no total
+      const todasAsDatas = new Set<string>();
+      
+      // Adicionar últimos 7 dias
+      ultimos7Dias.forEach(d => todasAsDatas.add(d.toISOString().split('T')[0]));
+      
+      // Adicionar dias com pedidos que estejam dentro do período mas fora dos últimos 7 dias
+      if (dataMaisAntiga && dataMaisAntiga < ultimos7Dias[0]) {
+        // Se o pedido mais antigo está antes dos últimos 7 dias, incluir dias com pedidos
+        datasComPedidos.forEach(d => {
+          if (d >= inicioPeriodo && d <= hoje) {
+            todasAsDatas.add(d.toISOString().split('T')[0]);
+          }
+        });
+      }
+      
+      // Converter para array, ordenar e pegar os últimos 7
+      const datasOrdenadas = Array.from(todasAsDatas)
+        .map(key => new Date(key + 'T00:00:00'))
+        .filter(d => d >= inicioPeriodo && d <= hoje)
+        .sort((a, b) => a.getTime() - b.getTime())
+        .slice(-7); // Pegar apenas os últimos 7 dias
+      
+      console.log('📊 Datas que serão exibidas:', datasOrdenadas.map(d => d.toLocaleDateString('pt-BR')));
+      
+      // Processar cada dia
+      datasOrdenadas.forEach(dataAtual => {
+        const dataKey = dataAtual.toISOString().split('T')[0];
+        const dados = pedidosPorData.get(dataKey) || { vendas: 0, pedidos: 0 };
         
-        const pedidosDoDia = pedidos?.filter(p => {
-          const dataPedido = new Date(p.data_pedido);
-          return dataPedido.toDateString() === dataAtual.toDateString();
-        }) || [];
+        const diaSemana = dataAtual.toLocaleDateString('pt-BR', { weekday: 'short' });
+        const diaMes = dataAtual.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+        const diaLabel = (diaSemana.charAt(0).toUpperCase() + diaSemana.slice(1, 3)) + ' ' + diaMes;
         
-        const vendas = pedidosDoDia.reduce((sum, p) => sum + (p.valor_total || 0), 0);
-        const numeroPedidos = pedidosDoDia.length;
+        if (dados.pedidos > 0) {
+          console.log(`📊 Dia ${diaLabel}: ${dados.pedidos} pedidos, R$ ${dados.vendas.toFixed(2)}`);
+        }
         
         vendasPorDia.push({
-          day: dia,
-          vendas: Math.round(vendas),
-          pedidos: numeroPedidos
+          day: diaLabel,
+          vendas: Math.round(dados.vendas),
+          pedidos: dados.pedidos
         });
       });
       
-      // Se não houver dados, retornar dados de exemplo
-      if (vendasPorDia.every(dia => dia.vendas === 0)) {
-        return [
-          { day: "Seg", vendas: 180, pedidos: 12 },
-          { day: "Ter", vendas: 240, pedidos: 18 },
-          { day: "Qua", vendas: 320, pedidos: 22 },
-          { day: "Qui", vendas: 280, pedidos: 15 },
-          { day: "Sex", vendas: 450, pedidos: 28 },
-          { day: "Sáb", vendas: 520, pedidos: 35 },
-          { day: "Dom", vendas: 380, pedidos: 25 },
-        ];
+      console.log('📊 Vendas por dia processadas (últimos 7 dias):', vendasPorDia);
+      console.log('📊 Detalhes dos dias:', vendasPorDia.map(v => `${v.day}: ${v.pedidos} pedidos, R$ ${v.vendas}`));
+      console.log('📊 Total de pedidos no período:', pedidos?.length || 0);
+      console.log('📊 Período selecionado:', periodo, '- Início:', inicioPeriodo.toISOString(), '- Fim:', hoje.toISOString());
+      
+      // Debug: mostrar datas dos pedidos encontrados
+      if (pedidos && pedidos.length > 0) {
+        const datasPedidos = pedidos.map(p => {
+          const data = new Date(p.data_pedido);
+          return data.toLocaleDateString('pt-BR') + ' ' + data.toLocaleTimeString('pt-BR');
+        });
+        console.log('📊 Datas dos pedidos encontrados:', datasPedidos);
       }
       
+      // Sempre retornar dados reais (mesmo que sejam zeros)
       return vendasPorDia;
       
     } catch (error) {
@@ -432,26 +557,96 @@ export const relatoriosService = {
   },
 
   // Buscar métodos de pagamento
-  async obterMetodosPagamento(): Promise<MetodoPagamento[]> {
+  async obterMetodosPagamento(periodo: string = '30d'): Promise<MetodoPagamento[]> {
     try {
-      const { data: pedidos, error } = await supabase
+      // Obter usuário atual
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+      
+      const hoje = new Date();
+      let inicioPeriodo: Date;
+      
+      // Calcular período baseado no parâmetro
+      switch (periodo) {
+        case '30d':
+          inicioPeriodo = new Date(hoje);
+          inicioPeriodo.setDate(hoje.getDate() - 30);
+          break;
+        case 'month':
+          inicioPeriodo = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+          break;
+        default: // 7d
+          inicioPeriodo = new Date(hoje);
+          inicioPeriodo.setDate(hoje.getDate() - 7);
+      }
+      
+      // Buscar TODOS os pedidos do período (sem filtrar por status)
+      // Incluir pedidos pagos mesmo que não estejam entregues
+      let query = supabase
         .from('pedidos')
-        .select('forma_pagamento')
-        .gte('data_pedido', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-        .in('status', ['entregue', 'concluido']);
+        .select('forma_pagamento, valor_total, status_pagamento')
+        .gte('data_pedido', inicioPeriodo.toISOString())
+        .lte('data_pedido', hoje.toISOString())
+        .neq('status', 'cancelado'); // Apenas excluir cancelados
+      
+      // REGRA DE NEGÓCIO: Vendedor só vê seus dados
+      if (isVendedor && user?.id) {
+        query = query.eq('criado_por', user.id);
+      }
+      
+      const { data: pedidos, error } = await query;
       
       if (error) throw error;
       
-      // Contar métodos de pagamento
-      const contadores = new Map();
-      const total = pedidos?.length || 0;
+      // Debug: verificar dados retornados
+      console.log(`📊 Métodos de Pagamento - Período: ${periodo}, Pedidos encontrados:`, pedidos?.length || 0);
+      if (pedidos && pedidos.length > 0) {
+        console.log('📊 Métodos de pagamento encontrados:', pedidos.map(p => ({ metodo: p.forma_pagamento, valor: p.valor_total })));
+      }
+      
+      // Função para normalizar nomes de métodos de pagamento
+      const normalizarMetodoPagamento = (metodo: string): string => {
+        if (!metodo) return 'Não informado';
+        
+        const metodoLower = metodo.toLowerCase().trim();
+        
+        // Normalizar variações de nomes
+        if (metodoLower.includes('pix')) return 'PIX';
+        if (metodoLower.includes('cartão') && metodoLower.includes('crédito')) return 'Cartão de Crédito';
+        if (metodoLower.includes('cartao') && metodoLower.includes('credito')) return 'Cartão de Crédito';
+        if (metodoLower.includes('cartão') && metodoLower.includes('débito')) return 'Cartão de Débito';
+        if (metodoLower.includes('cartao') && metodoLower.includes('debito')) return 'Cartão de Débito';
+        if (metodoLower.includes('dinheiro')) return 'Dinheiro';
+        if (metodoLower.includes('credito') && !metodoLower.includes('debito')) return 'Cartão de Crédito';
+        if (metodoLower.includes('debito')) return 'Cartão de Débito';
+        
+        // Retornar o nome original se não houver correspondência
+        return metodo.trim();
+      };
+      
+      // Agrupar por método de pagamento e somar valores
+      const contadores = new Map<string, { count: number; valor: number }>();
+      const totalPedidos = pedidos?.length || 0;
+      let valorTotal = 0;
       
       pedidos?.forEach(pedido => {
-        const metodo = pedido.forma_pagamento || 'Não informado';
-        contadores.set(metodo, (contadores.get(metodo) || 0) + 1);
+        const metodoOriginal = pedido.forma_pagamento || 'Não informado';
+        const metodo = normalizarMetodoPagamento(metodoOriginal);
+        
+        // IMPORTANTE: Usar valor_total (valor original, sem desconto)
+        const valor = pedido.valor_total || 0;
+        valorTotal += valor;
+        
+        if (contadores.has(metodo)) {
+          const existing = contadores.get(metodo)!;
+          existing.count += 1;
+          existing.valor += valor;
+        } else {
+          contadores.set(metodo, { count: 1, valor });
+        }
       });
       
-      // Converter para array com percentuais e cores
+      // Converter para array com percentuais baseados no valor total
       const cores = {
         'PIX': '#10B981',
         'Cartão de Crédito': '#3B82F6',
@@ -462,23 +657,19 @@ export const relatoriosService = {
       };
       
       const metodosPagamento: MetodoPagamento[] = Array.from(contadores.entries())
-        .map(([metodo, count]) => ({
+        .map(([metodo, dados]) => ({
           name: metodo,
-          value: Math.round((count / total) * 100),
+          // Percentual baseado no valor total (não na quantidade)
+          value: valorTotal > 0 ? Math.round((dados.valor / valorTotal) * 100) : 0,
           color: cores[metodo as keyof typeof cores] || '#6B7280'
         }))
         .sort((a, b) => b.value - a.value);
       
-      // Se não houver dados, retornar dados de exemplo
-      if (metodosPagamento.length === 0) {
-        return [
-          { name: "PIX", value: 45, color: "#10B981" },
-          { name: "Cartão Crédito", value: 30, color: "#3B82F6" },
-          { name: "Dinheiro", value: 20, color: "#F59E0B" },
-          { name: "Cartão Débito", value: 5, color: "#EF4444" },
-        ];
-      }
+      // Debug: verificar resultado final
+      console.log('📊 Métodos de pagamento agrupados:', metodosPagamento);
+      console.log('📊 Valor total:', valorTotal);
       
+      // Sempre retornar dados reais (mesmo que seja array vazio)
       return metodosPagamento;
       
     } catch (error) {
@@ -509,37 +700,8 @@ export const relatoriosService = {
         console.log('Não foi possível buscar da tabela entregas:', error);
       }
       
-      // 2. Tentar buscar da tabela pedidos (se o campo existir)
-      try {
-        let query = supabase
-          .from('pedidos')
-          .select('endereco_entrega_bairro, data_pedido, status, numero_pedido, criado_por')
-          .gte('data_pedido', ultimosMesDias.toISOString());
-        
-        // REGRA DE NEGÓCIO: Vendedor só vê seus dados
-        if (isVendedor && user?.id) {
-          query = query.eq('criado_por', user.id);
-        }
-        
-        const { data: pedidos, error: errorPedidos } = await query;
-        
-        if (!errorPedidos && pedidos && pedidos.length > 0) {
-          // Filtrar pedidos com bairro válido
-          const pedidosComBairro = pedidos.filter(p => 
-            p.endereco_entrega_bairro && 
-            p.endereco_entrega_bairro.trim() !== ''
-          );
-          
-          pedidosComBairro.forEach(pedido => {
-            const bairro = pedido.endereco_entrega_bairro?.trim();
-            if (bairro && bairro !== '') {
-              contadores.set(bairro, (contadores.get(bairro) || 0) + 1);
-            }
-          });
-        }
-      } catch (error) {
-        console.log('Não foi possível buscar da tabela pedidos:', error);
-      }
+      // 2. O campo endereco_entrega_bairro não existe na tabela pedidos
+      // O bairro é obtido através do relacionamento com a tabela clientes (já implementado acima)
       
       // 3. Se ainda não encontrou dados, buscar bairro do cliente
       if (contadores.size === 0) {
@@ -779,25 +941,145 @@ export const relatoriosService = {
     }
   },
 
+  // Obter relatório de produtos vendidos por período
+  async obterRelatorioVendasProdutos(
+    periodo: 'dia' | 'semana' | 'mes' | 'custom' = 'mes',
+    dataInicio?: string,
+    dataFim?: string
+  ): Promise<Array<{
+    nome_produto: string;
+    valor_unitario: number;
+    quantidade_vendida: number;
+    valor_total: number;
+  }>> {
+    try {
+      const hoje = new Date();
+      let inicioPerio: Date;
+      let fimPeriodo: Date = hoje;
+      
+      // Se for período personalizado, usar as datas fornecidas
+      if (periodo === 'custom' && dataInicio && dataFim) {
+        inicioPerio = new Date(dataInicio);
+        fimPeriodo = new Date(dataFim);
+        // Ajustar para incluir todo o dia final
+        fimPeriodo.setHours(23, 59, 59, 999);
+      } else {
+        // Calcular período baseado no parâmetro
+        switch (periodo) {
+          case 'dia':
+            inicioPerio = new Date(hoje);
+            inicioPerio.setDate(hoje.getDate() - 1);
+            break;
+          case 'semana':
+            inicioPerio = new Date(hoje);
+            inicioPerio.setDate(hoje.getDate() - 7);
+            break;
+          case 'mes':
+          default:
+            inicioPerio = new Date(hoje);
+            inicioPerio.setDate(hoje.getDate() - 30);
+            break;
+        }
+      }
+      
+      // Obter usuário atual
+      const user = authService.getCurrentUser();
+      const isVendedor = user?.perfil === 'Vendedor';
+      
+      // Buscar todos os itens de pedidos do período
+      let query = supabase
+        .from('itens_pedido')
+        .select(`
+          quantidade,
+          preco_unitario,
+          subtotal,
+          produto:produtos!inner(id, nome),
+          pedido:pedidos!inner(data_pedido, status, criado_por)
+        `)
+        .gte('pedido.data_pedido', inicioPerio.toISOString())
+        .lte('pedido.data_pedido', fimPeriodo.toISOString())
+        .in('pedido.status', ['entregue', 'concluido', 'em_entrega', 'pronto', 'em_preparo', 'aprovado']);
+      
+      // REGRA DE NEGÓCIO: Vendedor só vê dados dos seus pedidos
+      if (isVendedor && user?.id) {
+        query = query.eq('pedido.criado_por', user.id);
+      }
+      
+      const { data: itens, error } = await query;
+      
+      if (error) {
+        console.error('Erro ao buscar itens de pedidos:', error);
+        throw error;
+      }
+      
+      if (!itens || itens.length === 0) {
+        return [];
+      }
+      
+      // Agrupar por produto
+      const produtosMap = new Map<number, {
+        nome_produto: string;
+        valor_unitario: number;
+        quantidade_vendida: number;
+        valor_total: number;
+      }>();
+      
+      itens.forEach((item: any) => {
+        const produto = item.produto;
+        const produtoId = produto?.id;
+        const nomeProduto = produto?.nome || 'Produto não encontrado';
+        
+        if (produtoId) {
+          if (produtosMap.has(produtoId)) {
+            const existing = produtosMap.get(produtoId)!;
+            existing.quantidade_vendida += item.quantidade || 0;
+            existing.valor_total += item.subtotal || 0;
+            // Atualizar valor unitário médio
+            existing.valor_unitario = existing.valor_total / existing.quantidade_vendida;
+          } else {
+            produtosMap.set(produtoId, {
+              nome_produto: nomeProduto,
+              valor_unitario: item.preco_unitario || 0,
+              quantidade_vendida: item.quantidade || 0,
+              valor_total: item.subtotal || 0
+            });
+          }
+        }
+      });
+      
+      // Converter para array e ordenar por valor total (do maior para o menor)
+      const resultado = Array.from(produtosMap.values())
+        .sort((a, b) => b.valor_total - a.valor_total);
+      
+      console.log(`📊 Relatório de Vendas de Produtos - Período: ${periodo}, Total de produtos: ${resultado.length}`);
+      
+      return resultado;
+      
+    } catch (error: any) {
+      console.error('Erro ao obter relatório de vendas de produtos:', error);
+      throw new Error(error.message || 'Erro interno do servidor');
+    }
+  },
+
   // Obter relatório financeiro e de pedidos
   async obterRelatorioFinanceiro(periodo: string = '7d'): Promise<RelatorioFinanceiro> {
     try {
-      let dias = 7;
+      const hoje = new Date();
+      let inicioAtual: Date;
       
       switch (periodo) {
         case '30d':
-          dias = 30;
+          inicioAtual = new Date(hoje);
+          inicioAtual.setDate(hoje.getDate() - 30);
           break;
         case 'month':
-          dias = 30;
+          // Primeiro dia do mês atual
+          inicioAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
           break;
         default:
-          dias = 7;
+          inicioAtual = new Date(hoje);
+          inicioAtual.setDate(hoje.getDate() - 7);
       }
-      
-      const hoje = new Date();
-      const inicioAtual = new Date(hoje);
-      inicioAtual.setDate(hoje.getDate() - dias);
       
       // Obter usuário atual
       const user = authService.getCurrentUser();
@@ -806,7 +1088,7 @@ export const relatoriosService = {
       // Buscar todos os pedidos do período (sem filtrar por status)
       let query = supabase
         .from('pedidos')
-        .select('valor_total, valor_pago, status_pagamento, status, data_pedido, criado_por')
+        .select('valor_total, valor_desconto, percentual_desconto, tipo_desconto, valor_pago, status_pagamento, status, data_pedido, criado_por')
         .gte('data_pedido', inicioAtual.toISOString())
         .lte('data_pedido', hoje.toISOString());
       
@@ -822,6 +1104,8 @@ export const relatoriosService = {
       if (!pedidos || pedidos.length === 0) {
         return {
           valor_total_pedidos: 0,
+          valor_desconto_total: 0,
+          valor_final_pedidos: 0,
           valor_pago: 0,
           valor_pendente: 0,
           quantidade_pedidos: 0,
@@ -830,14 +1114,32 @@ export const relatoriosService = {
           quantidade_cancelado: 0,
           ticket_medio: 0,
           percentual_pago: 0,
-          percentual_pendente: 0
+          percentual_pendente: 0,
+          percentual_desconto_total: 0
         };
       }
       
-      // Calcular métricas
+      // IMPORTANTE: valor_total é o valor ORIGINAL (não muda quando desconto é aplicado)
+      // Calcular métricas baseadas no valor original
       const valor_total_pedidos = pedidos.reduce((sum, p) => sum + (p.valor_total || 0), 0);
+      
+      // Calcular total de descontos aplicados
+      const valor_desconto_total = pedidos.reduce((sum, p) => {
+        if (p.tipo_desconto === 'valor' && p.valor_desconto) {
+          return sum + p.valor_desconto;
+        } else if (p.tipo_desconto === 'percentual' && p.percentual_desconto) {
+          // Calcular desconto percentual sobre o valor_total original
+          const valorOriginal = p.valor_total || 0;
+          return sum + (valorOriginal * p.percentual_desconto / 100);
+        }
+        return sum;
+      }, 0);
+      
+      // Valor final a pagar = valor_total (original) - descontos
+      const valor_final_pedidos = valor_total_pedidos - valor_desconto_total;
+      
       const valor_pago = pedidos.reduce((sum, p) => sum + (p.valor_pago || 0), 0);
-      const valor_pendente = valor_total_pedidos - valor_pago;
+      const valor_pendente = valor_final_pedidos - valor_pago;
       
       const quantidade_pedidos = pedidos.length;
       const quantidade_entregue = pedidos.filter(p => 
@@ -848,12 +1150,20 @@ export const relatoriosService = {
       ).length;
       const quantidade_cancelado = pedidos.filter(p => p.status === 'cancelado').length;
       
+      // Ticket médio baseado no valor original
       const ticket_medio = quantidade_pedidos > 0 ? valor_total_pedidos / quantidade_pedidos : 0;
-      const percentual_pago = valor_total_pedidos > 0 ? (valor_pago / valor_total_pedidos) * 100 : 0;
-      const percentual_pendente = valor_total_pedidos > 0 ? (valor_pendente / valor_total_pedidos) * 100 : 0;
+      
+      // Percentuais baseados no valor final (original - desconto)
+      const percentual_pago = valor_final_pedidos > 0 ? (valor_pago / valor_final_pedidos) * 100 : 0;
+      const percentual_pendente = valor_final_pedidos > 0 ? (valor_pendente / valor_final_pedidos) * 100 : 0;
+      
+      // Percentual de desconto sobre o valor original
+      const percentual_desconto = valor_total_pedidos > 0 ? (valor_desconto_total / valor_total_pedidos) * 100 : 0;
       
       return {
         valor_total_pedidos,
+        valor_final_pedidos,
+        valor_desconto_total,
         valor_pago,
         valor_pendente,
         quantidade_pedidos,
@@ -862,7 +1172,8 @@ export const relatoriosService = {
         quantidade_cancelado,
         ticket_medio,
         percentual_pago,
-        percentual_pendente
+        percentual_pendente,
+        percentual_desconto
       };
       
     } catch (error: any) {

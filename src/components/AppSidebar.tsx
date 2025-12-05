@@ -1,4 +1,5 @@
-import { Package, ShoppingCart, Users, BarChart3, Truck, Warehouse, Home, Settings, LogOut, User, UserCog } from "lucide-react";
+import { Package, ShoppingCart, Users, BarChart3, Truck, Warehouse, Home, Settings, LogOut, User, UserCog, ChevronDown, ChevronUp, FileBarChart } from "lucide-react";
+import { useState } from "react";
 import {
   Sidebar,
   SidebarContent,
@@ -22,7 +23,16 @@ interface AppSidebarProps {
   setActivePage: (page: ActivePage) => void;
 }
 
-const menuItems = [
+interface MenuItem {
+  title: string;
+  url?: string;
+  icon: any;
+  page: PagePermission;
+  alwaysVisible?: boolean;
+  submenu?: MenuItem[];
+}
+
+const menuItems: MenuItem[] = [
   {
     title: "Dashboard",
     url: "dashboard",
@@ -62,9 +72,22 @@ const menuItems = [
   },
   {
     title: "Relatórios",
-    url: "reports",
     icon: BarChart3,
     page: "relatorios" as PagePermission,
+    submenu: [
+      {
+        title: "Relatório Geral",
+        url: "reports",
+        icon: BarChart3,
+        page: "relatorios" as PagePermission,
+      },
+      {
+        title: "Vendas de Produtos",
+        url: "product-sales",
+        icon: FileBarChart,
+        page: "relatorios" as PagePermission,
+      },
+    ],
   },
   {
     title: "Usuários",
@@ -77,9 +100,15 @@ const menuItems = [
 export function AppSidebar({ activePage, setActivePage }: AppSidebarProps) {
   const { user, logout } = useAuth();
   const { hasPageAccess, loading } = usePermissions();
+  const [openSubmenu, setOpenSubmenu] = useState<string | null>(null);
 
   const handleLogout = () => {
     logout();
+  };
+
+  // Alternar submenu
+  const toggleSubmenu = (title: string) => {
+    setOpenSubmenu(openSubmenu === title ? null : title);
   };
 
   // Filtrar itens do menu baseado nas permissões do usuário
@@ -131,25 +160,80 @@ export function AppSidebar({ activePage, setActivePage }: AppSidebarProps) {
               ) : (
                 // Menu normal
                 visibleMenuItems.map((item) => (
-                  <SidebarMenuItem key={item.title}>
-                    <SidebarMenuButton
-                      asChild
-                      isActive={activePage === item.url}
-                      className={`w-full transition-all duration-200 ${
-                        activePage === item.url
-                          ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700'
-                          : 'hover:bg-gray-100 text-gray-700'
-                      }`}
-                    >
-                      <button
-                        onClick={() => setActivePage(item.url as ActivePage)}
-                        className="flex items-center gap-3 w-full"
-                      >
-                        <item.icon className="w-5 h-5" />
-                        <span className="font-medium">{item.title}</span>
-                      </button>
-                    </SidebarMenuButton>
-                  </SidebarMenuItem>
+                  <div key={item.title}>
+                    {item.submenu ? (
+                      // Item com submenu
+                      <>
+                        <SidebarMenuItem>
+                          <SidebarMenuButton
+                            asChild
+                            className="w-full transition-all duration-200 hover:bg-gray-100 text-gray-700"
+                          >
+                            <button
+                              onClick={() => toggleSubmenu(item.title)}
+                              className="flex items-center gap-3 w-full"
+                            >
+                              <item.icon className="w-5 h-5" />
+                              <span className="font-medium flex-1 text-left">{item.title}</span>
+                              {openSubmenu === item.title ? (
+                                <ChevronUp className="w-4 h-4" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4" />
+                              )}
+                            </button>
+                          </SidebarMenuButton>
+                        </SidebarMenuItem>
+                        
+                        {/* Submenu items */}
+                        {openSubmenu === item.title && (
+                          <div className="ml-4 mt-1 space-y-1">
+                            {item.submenu.map((subitem) => (
+                              <SidebarMenuItem key={subitem.title}>
+                                <SidebarMenuButton
+                                  asChild
+                                  isActive={activePage === subitem.url}
+                                  className={`w-full transition-all duration-200 ${
+                                    activePage === subitem.url
+                                      ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700'
+                                      : 'hover:bg-gray-100 text-gray-600'
+                                  }`}
+                                >
+                                  <button
+                                    onClick={() => setActivePage(subitem.url as ActivePage)}
+                                    className="flex items-center gap-3 w-full text-sm"
+                                  >
+                                    <subitem.icon className="w-4 h-4" />
+                                    <span className="font-medium">{subitem.title}</span>
+                                  </button>
+                                </SidebarMenuButton>
+                              </SidebarMenuItem>
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      // Item normal sem submenu
+                      <SidebarMenuItem>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={activePage === item.url}
+                          className={`w-full transition-all duration-200 ${
+                            activePage === item.url
+                              ? 'bg-gradient-to-r from-blue-500 to-purple-600 text-white hover:from-blue-600 hover:to-purple-700'
+                              : 'hover:bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          <button
+                            onClick={() => setActivePage(item.url as ActivePage)}
+                            className="flex items-center gap-3 w-full"
+                          >
+                            <item.icon className="w-5 h-5" />
+                            <span className="font-medium">{item.title}</span>
+                          </button>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    )}
+                  </div>
                 ))
               )}
             </SidebarMenu>

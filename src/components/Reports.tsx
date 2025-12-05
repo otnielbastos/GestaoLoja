@@ -35,9 +35,9 @@ function Reports() {
         financialResponse
       ] = await Promise.all([
         relatoriosService.obterDashboard(selectedPeriod),
-        relatoriosService.obterVendasPorDia(),
+        relatoriosService.obterVendasPorDia(selectedPeriod),
         relatoriosService.obterTopProdutos(),
-        relatoriosService.obterMetodosPagamento(),
+        relatoriosService.obterMetodosPagamento(selectedPeriod),
         relatoriosService.obterPedidosPorBairro(),
         relatoriosService.obterRelatorioFinanceiro(selectedPeriod)
       ]);
@@ -48,6 +48,13 @@ function Reports() {
       setPaymentMethods(pagamentosResponse);
       setNeighborhoods(bairrosResponse);
       setFinancialData(financialResponse);
+      
+      // Debug: verificar dados recebidos
+      console.log('📊 Reports - Dados recebidos:', {
+        vendasPorDia: vendasResponse,
+        metodosPagamento: pagamentosResponse,
+        periodo: selectedPeriod
+      });
       
     } catch (err) {
       console.error('Erro ao carregar dados dos relatórios:', err);
@@ -220,12 +227,40 @@ function Reports() {
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div className="p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg border border-blue-200">
                   <div className="flex items-center justify-between mb-2">
-                    <p className="text-sm font-medium text-blue-700">Valor Total dos Pedidos</p>
+                    <p className="text-sm font-medium text-blue-700">Valor Original dos Pedidos</p>
                     <DollarSign className="w-5 h-5 text-blue-600" />
                   </div>
                   <p className="text-2xl font-bold text-blue-900">{formatarMoeda(financialData.valor_total_pedidos)}</p>
-                  <p className="text-xs text-blue-600 mt-1">Todos os status</p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Valor antes dos descontos
+                  </p>
                 </div>
+                
+                {financialData.valor_desconto_total > 0 && (
+                  <div className="p-4 bg-gradient-to-br from-red-50 to-red-100 rounded-lg border border-red-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-red-700">Descontos Aplicados</p>
+                      <TrendingUp className="w-5 h-5 text-red-600 rotate-180" />
+                    </div>
+                    <p className="text-2xl font-bold text-red-900">{formatarMoeda(financialData.valor_desconto_total)}</p>
+                    <p className="text-xs text-red-600 mt-1">
+                      {financialData.percentual_desconto_total?.toFixed(1)}% do valor original
+                    </p>
+                  </div>
+                )}
+                
+                {financialData.valor_final_pedidos !== undefined && financialData.valor_final_pedidos !== financialData.valor_total_pedidos && (
+                  <div className="p-4 bg-gradient-to-br from-emerald-50 to-emerald-100 rounded-lg border border-emerald-200">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-sm font-medium text-emerald-700">Valor Final a Pagar</p>
+                      <DollarSign className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <p className="text-2xl font-bold text-emerald-900">{formatarMoeda(financialData.valor_final_pedidos)}</p>
+                    <p className="text-xs text-emerald-600 mt-1">
+                      Após descontos
+                    </p>
+                  </div>
+                )}
                 
                 <div className="p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg border border-green-200">
                   <div className="flex items-center justify-between mb-2">

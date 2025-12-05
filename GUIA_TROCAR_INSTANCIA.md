@@ -111,3 +111,6 @@ Ou simplesmente abra o arquivo `.env.local` e procure pela seção marcada como 
 - Verifique se tem permissões para executar scripts PowerShell
 - Se necessário, execute: `Set-ExecutionPolicy -Scope Process -ExecutionPolicy RemoteSigned`
 
+
+
+
