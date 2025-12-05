@@ -397,6 +397,12 @@ Se você tem **pouco tempo** e precisa entender rapidamente:
 - **Performance:** ADMIN_GESTAO_FINANCEIRA_SUPORTE.md → Seção "Monitoramento e Métricas"
 - **Alertas:** ADMIN_GESTAO_FINANCEIRA_SUPORTE.md → Seção "Alertas e Notificações"
 
+### Como Começar
+- **Estratégia:** GUIA_INICIO_IMPLEMENTACAO.md → Seção "Estratégia de Desenvolvimento"
+- **Branches:** GUIA_INICIO_IMPLEMENTACAO.md → Seção "Estrutura de Branches"
+- **Preparação:** GUIA_INICIO_IMPLEMENTACAO.md → Seção "Preparação (Fase 0)"
+- **Workflow:** GUIA_INICIO_IMPLEMENTACAO.md → Seção "Workflow de Trabalho"
+
 ---
 
 ## 📞 PERGUNTAS FREQUENTES
