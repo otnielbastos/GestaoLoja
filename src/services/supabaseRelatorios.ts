@@ -1216,7 +1216,7 @@ export const relatoriosService = {
         ticket_medio,
         percentual_pago,
         percentual_pendente,
-        percentual_desconto
+        percentual_desconto_total: percentual_desconto
       };
       
     } catch (error: any) {
