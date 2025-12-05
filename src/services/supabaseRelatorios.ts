@@ -207,19 +207,38 @@ const buscarBairrosDeEntregas = async (
 
 export const relatoriosService = {
   // Buscar dados do dashboard principal
-  async obterDashboard(periodo: string = '7d'): Promise<RelatorioDashboard> {
+  async obterDashboard(periodo: string = '7d', dataInicio?: string, dataFim?: string): Promise<RelatorioDashboard> {
     try {
       let periodoCalculado;
       
-      switch (periodo) {
-        case '30d':
-          periodoCalculado = obterPeriodoAnterior(30);
-          break;
-        case 'month':
-          periodoCalculado = obterPeriodoMesAtual();
-          break;
-        default:
-          periodoCalculado = obterPeriodoAnterior(7);
+      // Se for período personalizado, usar as datas fornecidas
+      if (periodo === 'custom' && dataInicio && dataFim) {
+        const inicio = new Date(dataInicio);
+        const fim = new Date(dataFim);
+        fim.setHours(23, 59, 59, 999);
+        
+        // Calcular período anterior com a mesma duração
+        const duracao = fim.getTime() - inicio.getTime();
+        const inicioAnterior = new Date(inicio.getTime() - duracao);
+        const fimAnterior = new Date(inicio.getTime() - 1);
+        
+        periodoCalculado = {
+          inicio_atual: inicio.toISOString(),
+          fim_atual: fim.toISOString(),
+          inicio_anterior: inicioAnterior.toISOString(),
+          fim_anterior: fimAnterior.toISOString()
+        };
+      } else {
+        switch (periodo) {
+          case '30d':
+            periodoCalculado = obterPeriodoAnterior(30);
+            break;
+          case 'month':
+            periodoCalculado = obterPeriodoMesAtual();
+            break;
+          default:
+            periodoCalculado = obterPeriodoAnterior(7);
+        }
       }
       
       const { inicio_atual, fim_atual, inicio_anterior, fim_anterior } = periodoCalculado;
@@ -303,23 +322,31 @@ export const relatoriosService = {
   },
 
   // Buscar vendas por dia
-  async obterVendasPorDia(periodo: string = '7d'): Promise<VendasPorDia[]> {
+  async obterVendasPorDia(periodo: string = '7d', dataInicio?: string, dataFim?: string): Promise<VendasPorDia[]> {
     try {
       const hoje = new Date();
       let inicioPeriodo: Date;
+      let fimPeriodo: Date = hoje;
       
-      // Calcular período baseado no parâmetro
-      switch (periodo) {
-        case '30d':
-          inicioPeriodo = new Date(hoje);
-          inicioPeriodo.setDate(hoje.getDate() - 30);
-          break;
-        case 'month':
-          inicioPeriodo = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-          break;
-        default: // 7d
-          inicioPeriodo = new Date(hoje);
-          inicioPeriodo.setDate(hoje.getDate() - 7);
+      // Se for período personalizado, usar as datas fornecidas
+      if (periodo === 'custom' && dataInicio && dataFim) {
+        inicioPeriodo = new Date(dataInicio);
+        fimPeriodo = new Date(dataFim);
+        fimPeriodo.setHours(23, 59, 59, 999);
+      } else {
+        // Calcular período baseado no parâmetro
+        switch (periodo) {
+          case '30d':
+            inicioPeriodo = new Date(hoje);
+            inicioPeriodo.setDate(hoje.getDate() - 30);
+            break;
+          case 'month':
+            inicioPeriodo = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            break;
+          default: // 7d
+            inicioPeriodo = new Date(hoje);
+            inicioPeriodo.setDate(hoje.getDate() - 7);
+        }
       }
       
       // Obter usuário atual
@@ -332,7 +359,7 @@ export const relatoriosService = {
         .from('pedidos')
         .select('id, valor_total, data_pedido, status, status_pagamento, forma_pagamento')
         .gte('data_pedido', inicioPeriodo.toISOString())
-        .lte('data_pedido', hoje.toISOString())
+        .lte('data_pedido', fimPeriodo.toISOString())
         .neq('status', 'cancelado'); // Apenas excluir cancelados
       
       // REGRA DE NEGÓCIO: Vendedor só vê seus dados
@@ -346,7 +373,7 @@ export const relatoriosService = {
       
       // Debug: verificar dados retornados
       console.log(`📊 Vendas por Dia - Período: ${periodo}`);
-      console.log(`📊 Data início: ${inicioPeriodo.toISOString()}, Data fim: ${hoje.toISOString()}`);
+      console.log(`📊 Data início: ${inicioPeriodo.toISOString()}, Data fim: ${fimPeriodo.toISOString()}`);
       console.log(`📊 Pedidos encontrados:`, pedidos?.length || 0);
       if (pedidos && pedidos.length > 0) {
         console.log('📊 Vendas por dia - Todos os pedidos:', pedidos.map(p => ({ 
@@ -428,7 +455,7 @@ export const relatoriosService = {
       // Converter para array, ordenar e pegar os últimos 7
       const datasOrdenadas = Array.from(todasAsDatas)
         .map(key => new Date(key + 'T00:00:00'))
-        .filter(d => d >= inicioPeriodo && d <= hoje)
+        .filter(d => d >= inicioPeriodo && d <= fimPeriodo)
         .sort((a, b) => a.getTime() - b.getTime())
         .slice(-7); // Pegar apenas os últimos 7 dias
       
@@ -457,7 +484,7 @@ export const relatoriosService = {
       console.log('📊 Vendas por dia processadas (últimos 7 dias):', vendasPorDia);
       console.log('📊 Detalhes dos dias:', vendasPorDia.map(v => `${v.day}: ${v.pedidos} pedidos, R$ ${v.vendas}`));
       console.log('📊 Total de pedidos no período:', pedidos?.length || 0);
-      console.log('📊 Período selecionado:', periodo, '- Início:', inicioPeriodo.toISOString(), '- Fim:', hoje.toISOString());
+      console.log('📊 Período selecionado:', periodo, '- Início:', inicioPeriodo.toISOString(), '- Fim:', fimPeriodo.toISOString());
       
       // Debug: mostrar datas dos pedidos encontrados
       if (pedidos && pedidos.length > 0) {
@@ -557,7 +584,7 @@ export const relatoriosService = {
   },
 
   // Buscar métodos de pagamento
-  async obterMetodosPagamento(periodo: string = '30d'): Promise<MetodoPagamento[]> {
+  async obterMetodosPagamento(periodo: string = '30d', dataInicio?: string, dataFim?: string): Promise<MetodoPagamento[]> {
     try {
       // Obter usuário atual
       const user = authService.getCurrentUser();
@@ -565,19 +592,27 @@ export const relatoriosService = {
       
       const hoje = new Date();
       let inicioPeriodo: Date;
+      let fimPeriodo: Date = hoje;
       
-      // Calcular período baseado no parâmetro
-      switch (periodo) {
-        case '30d':
-          inicioPeriodo = new Date(hoje);
-          inicioPeriodo.setDate(hoje.getDate() - 30);
-          break;
-        case 'month':
-          inicioPeriodo = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-          break;
-        default: // 7d
-          inicioPeriodo = new Date(hoje);
-          inicioPeriodo.setDate(hoje.getDate() - 7);
+      // Se for período personalizado, usar as datas fornecidas
+      if (periodo === 'custom' && dataInicio && dataFim) {
+        inicioPeriodo = new Date(dataInicio);
+        fimPeriodo = new Date(dataFim);
+        fimPeriodo.setHours(23, 59, 59, 999);
+      } else {
+        // Calcular período baseado no parâmetro
+        switch (periodo) {
+          case '30d':
+            inicioPeriodo = new Date(hoje);
+            inicioPeriodo.setDate(hoje.getDate() - 30);
+            break;
+          case 'month':
+            inicioPeriodo = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            break;
+          default: // 7d
+            inicioPeriodo = new Date(hoje);
+            inicioPeriodo.setDate(hoje.getDate() - 7);
+        }
       }
       
       // Buscar TODOS os pedidos do período (sem filtrar por status)
@@ -586,7 +621,7 @@ export const relatoriosService = {
         .from('pedidos')
         .select('forma_pagamento, valor_total, status_pagamento')
         .gte('data_pedido', inicioPeriodo.toISOString())
-        .lte('data_pedido', hoje.toISOString())
+        .lte('data_pedido', fimPeriodo.toISOString())
         .neq('status', 'cancelado'); // Apenas excluir cancelados
       
       // REGRA DE NEGÓCIO: Vendedor só vê seus dados
@@ -1062,23 +1097,31 @@ export const relatoriosService = {
   },
 
   // Obter relatório financeiro e de pedidos
-  async obterRelatorioFinanceiro(periodo: string = '7d'): Promise<RelatorioFinanceiro> {
+  async obterRelatorioFinanceiro(periodo: string = '7d', dataInicio?: string, dataFim?: string): Promise<RelatorioFinanceiro> {
     try {
       const hoje = new Date();
       let inicioAtual: Date;
+      let fimAtual: Date = hoje;
       
-      switch (periodo) {
-        case '30d':
-          inicioAtual = new Date(hoje);
-          inicioAtual.setDate(hoje.getDate() - 30);
-          break;
-        case 'month':
-          // Primeiro dia do mês atual
-          inicioAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-          break;
-        default:
-          inicioAtual = new Date(hoje);
-          inicioAtual.setDate(hoje.getDate() - 7);
+      // Se for período personalizado, usar as datas fornecidas
+      if (periodo === 'custom' && dataInicio && dataFim) {
+        inicioAtual = new Date(dataInicio);
+        fimAtual = new Date(dataFim);
+        fimAtual.setHours(23, 59, 59, 999);
+      } else {
+        switch (periodo) {
+          case '30d':
+            inicioAtual = new Date(hoje);
+            inicioAtual.setDate(hoje.getDate() - 30);
+            break;
+          case 'month':
+            // Primeiro dia do mês atual
+            inicioAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+            break;
+          default:
+            inicioAtual = new Date(hoje);
+            inicioAtual.setDate(hoje.getDate() - 7);
+        }
       }
       
       // Obter usuário atual
@@ -1090,7 +1133,7 @@ export const relatoriosService = {
         .from('pedidos')
         .select('valor_total, valor_desconto, percentual_desconto, tipo_desconto, valor_pago, status_pagamento, status, data_pedido, criado_por')
         .gte('data_pedido', inicioAtual.toISOString())
-        .lte('data_pedido', hoje.toISOString());
+        .lte('data_pedido', fimAtual.toISOString());
       
       // REGRA DE NEGÓCIO: Vendedor só vê seus dados
       if (isVendedor && user?.id) {

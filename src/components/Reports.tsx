@@ -11,6 +11,10 @@ function Reports() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   
+  // Estados para período personalizado
+  const [dataInicio, setDataInicio] = useState("");
+  const [dataFim, setDataFim] = useState("");
+  
   // Estados para os dados
   const [dashboardData, setDashboardData] = useState<any>(null);
   const [salesData, setSalesData] = useState<any[]>([]);
@@ -25,6 +29,21 @@ function Reports() {
       setLoading(true);
       setError(null);
       
+      // Validar datas se for período personalizado
+      if (selectedPeriod === 'custom') {
+        if (!dataInicio || !dataFim) {
+          setError('Por favor, selecione a data de início e fim.');
+          setLoading(false);
+          return;
+        }
+        
+        if (new Date(dataInicio) > new Date(dataFim)) {
+          setError('A data de início não pode ser maior que a data fim.');
+          setLoading(false);
+          return;
+        }
+      }
+      
       // Carregar dados em paralelo
       const [
         dashboardResponse,
@@ -34,12 +53,12 @@ function Reports() {
         bairrosResponse,
         financialResponse
       ] = await Promise.all([
-        relatoriosService.obterDashboard(selectedPeriod),
-        relatoriosService.obterVendasPorDia(selectedPeriod),
+        relatoriosService.obterDashboard(selectedPeriod, dataInicio, dataFim),
+        relatoriosService.obterVendasPorDia(selectedPeriod, dataInicio, dataFim),
         relatoriosService.obterTopProdutos(),
-        relatoriosService.obterMetodosPagamento(selectedPeriod),
+        relatoriosService.obterMetodosPagamento(selectedPeriod, dataInicio, dataFim),
         relatoriosService.obterPedidosPorBairro(),
-        relatoriosService.obterRelatorioFinanceiro(selectedPeriod)
+        relatoriosService.obterRelatorioFinanceiro(selectedPeriod, dataInicio, dataFim)
       ]);
       
       setDashboardData(dashboardResponse);
@@ -53,7 +72,9 @@ function Reports() {
       console.log('📊 Reports - Dados recebidos:', {
         vendasPorDia: vendasResponse,
         metodosPagamento: pagamentosResponse,
-        periodo: selectedPeriod
+        periodo: selectedPeriod,
+        dataInicio,
+        dataFim
       });
       
     } catch (err) {
@@ -66,7 +87,10 @@ function Reports() {
 
   // Carregar dados quando o componente monta ou o período muda
   useEffect(() => {
-    carregarDados();
+    // Se não for período personalizado, carregar automaticamente
+    if (selectedPeriod !== 'custom') {
+      carregarDados();
+    }
   }, [selectedPeriod]);
 
   // Função para calcular variação percentual
@@ -135,22 +159,59 @@ function Reports() {
       {/* Period Selector */}
       <Card className="border-0 shadow-md">
         <CardContent className="p-6">
-          <div className="flex flex-wrap gap-2">
-            {[
-              { label: "Últimos 7 dias", value: "7d" },
-              { label: "Últimos 30 dias", value: "30d" },
-              { label: "Este mês", value: "month" },
-              { label: "Personalizado", value: "custom" },
-            ].map((period) => (
-              <Button
-                key={period.value}
-                variant={selectedPeriod === period.value ? "default" : "outline"}
-                onClick={() => setSelectedPeriod(period.value)}
-                className={selectedPeriod === period.value ? "bg-gradient-to-r from-blue-500 to-purple-600" : ""}
-              >
-                {period.label}
-              </Button>
-            ))}
+          <div className="space-y-4">
+            <div className="flex flex-wrap gap-2">
+              {[
+                { label: "Últimos 7 dias", value: "7d" },
+                { label: "Últimos 30 dias", value: "30d" },
+                { label: "Este mês", value: "month" },
+                { label: "Período Personalizado", value: "custom" },
+              ].map((period) => (
+                <Button
+                  key={period.value}
+                  variant={selectedPeriod === period.value ? "default" : "outline"}
+                  onClick={() => setSelectedPeriod(period.value)}
+                  className={selectedPeriod === period.value ? "bg-gradient-to-r from-blue-500 to-purple-600" : ""}
+                >
+                  {period.label}
+                </Button>
+              ))}
+            </div>
+            
+            {/* Campos de Data Personalizada */}
+            {selectedPeriod === 'custom' && (
+              <div className="flex flex-col sm:flex-row gap-4 items-end p-4 bg-blue-50 rounded-lg border border-blue-200">
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Data Início
+                  </label>
+                  <Input
+                    type="date"
+                    value={dataInicio}
+                    onChange={(e) => setDataInicio(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Data Fim
+                  </label>
+                  <Input
+                    type="date"
+                    value={dataFim}
+                    onChange={(e) => setDataFim(e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+                <Button 
+                  onClick={carregarDados}
+                  disabled={!dataInicio || !dataFim}
+                  className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+                >
+                  Aplicar Filtro
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
