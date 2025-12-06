@@ -28,3 +28,5 @@ COMMENT ON COLUMN public.clientes.empresa_id IS 'Empresa à qual o cliente perte
 
 -- FIM DA MIGRATION
 
+
+

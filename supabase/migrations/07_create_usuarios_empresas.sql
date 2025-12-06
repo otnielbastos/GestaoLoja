@@ -207,3 +207,5 @@ CHECK (papel IN ('super_admin', 'admin', 'gerente', 'operador', 'usuario'));
 -- FIM DA MIGRATION
 -- ================================================
 
+
+

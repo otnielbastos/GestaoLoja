@@ -249,3 +249,5 @@ FOREIGN KEY (plano_id) REFERENCES public.planos(id);
 -- FIM DA MIGRATION
 -- ================================================
 
+
+

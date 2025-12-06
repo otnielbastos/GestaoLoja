@@ -30,3 +30,5 @@ COMMENT ON COLUMN public.transferencias_estoque.empresa_id IS 'Empresa à qual a
 
 -- FIM DA MIGRATION
 
+
+

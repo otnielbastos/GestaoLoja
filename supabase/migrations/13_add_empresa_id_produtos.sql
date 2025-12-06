@@ -33,3 +33,5 @@ COMMENT ON COLUMN public.produtos.empresa_id IS 'Empresa à qual o produto perte
 
 -- FIM DA MIGRATION
 
+
+

@@ -23,3 +23,5 @@ COMMENT ON COLUMN public.usuarios.empresa_id IS 'Empresa à qual o usuário pert
 
 -- FIM DA MIGRATION
 
+
+

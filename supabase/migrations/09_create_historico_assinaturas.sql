@@ -331,3 +331,5 @@ CHECK (periodo_cobranca IN ('mensal', 'anual'));
 -- FIM DA MIGRATION
 -- ================================================
 
+
+

@@ -280,3 +280,5 @@ CHECK (tipo_limite IN ('usuarios', 'produtos', 'pedidos_mes', 'clientes', 'filia
 -- FIM DA MIGRATION
 -- ================================================
 
+
+
