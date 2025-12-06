@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import { authService } from './supabaseAuth';
+import { nowBrasiliaISO } from '../utils/dateUtils';
 
 interface MovimentacaoEstoqueData {
   produto_id: number;
@@ -198,7 +199,7 @@ export const estoqueService = {
             quantidade_atual: novaQuantidadeTotal,
             quantidade_pronta_entrega: novaQuantidadeProntaEntrega,
             quantidade_encomenda: novaQuantidadeEncomenda,
-            ultima_atualizacao: new Date().toISOString()
+            ultima_atualizacao: nowBrasiliaISO()
           })
           .eq('produto_id', produto_id);
       } else {

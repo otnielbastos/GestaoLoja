@@ -1,5 +1,6 @@
 import { supabase } from '../lib/supabase';
 import bcrypt from 'bcryptjs';
+import { nowBrasiliaISO } from '../utils/dateUtils';
 
 interface LoginData {
   email: string;
@@ -178,7 +179,7 @@ export const authService = {
         .update({
           tentativas_login: 0,
           bloqueado_ate: null,
-          ultimo_acesso: new Date().toISOString()
+          ultimo_acesso: nowBrasiliaISO()
         })
         .eq('id', usuarios.id);
 
@@ -428,7 +429,7 @@ export const authService = {
         .from('usuarios')
         .update({
           senha_hash: novaSenhaHash,
-          data_atualizacao: new Date().toISOString()
+          data_atualizacao: nowBrasiliaISO()
         })
         .eq('id', userId);
 
@@ -475,7 +476,7 @@ export const authService = {
         .from('usuarios')
         .update({
           nome: nome.trim(),
-          data_atualizacao: new Date().toISOString()
+          data_atualizacao: nowBrasiliaISO()
         })
         .eq('id', userId);
 

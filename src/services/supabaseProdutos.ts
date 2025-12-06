@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { nowBrasiliaISO } from '../utils/dateUtils';
 
 interface ProdutoData {
   nome: string;
@@ -234,7 +235,7 @@ export const produtosService = {
       if (imagem_url !== undefined) updateData.imagem_url = imagem_url || null;
       if (status !== undefined) updateData.status = status;
 
-      updateData.data_atualizacao = new Date().toISOString();
+      updateData.data_atualizacao = nowBrasiliaISO();
 
       const { error } = await supabase
         .from('produtos')

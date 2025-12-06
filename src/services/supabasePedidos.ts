@@ -1,6 +1,7 @@
 import { supabase } from '../lib/supabase';
 import type { Pedido, ItemPedido } from '../lib/supabase';
 import { authService } from './supabaseAuth';
+import { nowBrasiliaISO } from '../utils/dateUtils';
 
 interface CriarPedidoData {
   cliente_id: number;
@@ -113,7 +114,7 @@ const processarEntradaAutomaticaEstoque = async (pedidoId: number, itens: ItemPe
           pedido_id: pedidoId,
           tipo_operacao: 'automatica',
           tipo_estoque: 'encomenda',
-          data_fabricacao: new Date().toISOString().split('T')[0],
+          data_fabricacao: nowBrasiliaISO().split('T')[0],
           observacao: 'Entrada automática por conclusão de produção - ESTOQUE DE ENCOMENDA'
         });
       
@@ -130,7 +131,7 @@ const processarEntradaAutomaticaEstoque = async (pedidoId: number, itens: ItemPe
           .update({
             quantidade_atual: estoqueAtual.quantidade_atual + quantidade,
             quantidade_encomenda: estoqueAtual.quantidade_encomenda + quantidade,
-            ultima_atualizacao: new Date().toISOString()
+            ultima_atualizacao: nowBrasiliaISO()
           })
           .eq('produto_id', produto_id);
       } else {
@@ -731,7 +732,7 @@ export const pedidosService = {
       }
 
       if (status_pagamento === 'pago') {
-        updateData.data_pagamento = new Date().toISOString();
+        updateData.data_pagamento = nowBrasiliaISO();
       }
 
       // REGRA 3: Conclusão automática quando pagamento integral + status entregue
@@ -769,7 +770,7 @@ export const pedidosService = {
           };
           
           if (status_pagamento === 'pago') {
-            updateDataBasico.data_pagamento = new Date().toISOString();
+            updateDataBasico.data_pagamento = nowBrasiliaISO();
           }
           
           // Calcular valor final para verificação
