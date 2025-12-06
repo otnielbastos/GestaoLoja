@@ -396,17 +396,28 @@ export function useOrders() {
   // Adicionar pedido
   const addOrder = async (orderData: Omit<Order, 'id'>) => {
     try {
+      // Validar itens antes de mapear
+      if (!orderData.items || orderData.items.length === 0) {
+        throw new Error('O pedido deve ter pelo menos um item');
+      }
+
+      // Validar se todos os itens têm produto_id válido
+      const itensInvalidos = orderData.items.filter(item => !item.productId || item.productId <= 0);
+      if (itensInvalidos.length > 0) {
+        throw new Error('Um ou mais itens não possuem produto válido');
+      }
+
       // Mapear dados para formato do backend
       const backendData = {
         cliente_id: orderData.customerId,
         tipo: orderData.tipo || 'pronta_entrega',
-        data_entrega_prevista: orderData.data_entrega_prevista,
-        horario_entrega: orderData.horario_entrega,
-        observacoes_producao: orderData.observacoes_producao,
+        data_entrega_prevista: orderData.data_entrega_prevista || undefined,
+        horario_entrega: orderData.horario_entrega || undefined,
+        observacoes_producao: orderData.observacoes_producao || undefined,
         forma_pagamento: orderData.paymentMethod,
-        observacoes: orderData.notes,
+        observacoes: orderData.notes || undefined,
         itens: orderData.items.map(item => ({
-          produto_id: item.productId || 0,
+          produto_id: item.productId,
           quantidade: item.quantity,
           preco_unitario: item.unitPrice,
           desconto_valor: 0,

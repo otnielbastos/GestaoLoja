@@ -400,28 +400,40 @@ export const pedidosService = {
       const numeroPedido = await gerarProximoNumero();
 
       // Criar pedido
-      // Na criação, valor_subtotal e valor_total são iguais (desconto é aplicado depois no pagamento)
+      // Preparar dados para inserção, tratando valores opcionais
+      const dadosPedido: any = {
+        cliente_id,
+        numero_pedido: numeroPedido,
+        status: 'pendente',
+        tipo,
+        valor_total: valorTotal,
+        forma_pagamento,
+        criado_por: usuarioId
+      };
+
+      // Adicionar campos opcionais apenas se tiverem valor
+      if (data_entrega_prevista) {
+        dadosPedido.data_entrega_prevista = data_entrega_prevista;
+      }
+      if (horario_entrega) {
+        dadosPedido.horario_entrega = horario_entrega;
+      }
+      if (observacoes) {
+        dadosPedido.observacoes = observacoes;
+      }
+      if (observacoes_producao) {
+        dadosPedido.observacoes_producao = observacoes_producao;
+      }
+
       const { data: novoPedido, error: pedidoError } = await supabase
         .from('pedidos')
-        .insert({
-          cliente_id,
-          numero_pedido: numeroPedido,
-          status: 'pendente',
-          tipo,
-          data_entrega_prevista,
-          horario_entrega,
-          valor_total: valorTotal,
-          valor_subtotal: valorTotal, // Subtotal igual ao total na criação
-          forma_pagamento,
-          observacoes,
-          observacoes_producao,
-          criado_por: usuarioId
-        })
+        .insert(dadosPedido)
         .select()
         .single();
 
       if (pedidoError) {
-        throw new Error('Erro ao criar pedido');
+        console.error('Erro detalhado ao criar pedido:', pedidoError);
+        throw new Error(pedidoError.message || 'Erro ao criar pedido');
       }
 
       // Criar itens do pedido

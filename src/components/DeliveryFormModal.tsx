@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -120,6 +120,9 @@ export function DeliveryFormModal({ isOpen, onClose, onSubmit, delivery }: Deliv
           <DialogTitle>
             {delivery ? 'Editar Entrega' : 'Nova Entrega'}
           </DialogTitle>
+          <DialogDescription>
+            {delivery ? 'Edite as informações da entrega abaixo.' : 'Preencha as informações para criar uma nova entrega.'}
+          </DialogDescription>
         </DialogHeader>
         
         <form onSubmit={handleSubmit} className="space-y-4">
